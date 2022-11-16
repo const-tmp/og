@@ -111,11 +111,12 @@ to quickly create a Cobra application.`,
 						logger.Fatal(err)
 					}
 
-					err = writer.File(filepath.Join(args[1], names.PackageNameFromType(typeSpec.Name.Name)), "crud.gensta.go", formatted)
+					dir := filepath.Join(args[1], names.PackageNameFromType(typeSpec.Name.Name))
+					err = writer.File(dir, "crud.gensta.go", formatted)
 					if err != nil {
-						logger.Fatal(filepath.Join(args[1], names.PackageNameFromType(typeSpec.Name.Name), "crud.gensta.go"), err)
+						logger.Fatal(filepath.Join(dir, "crud.gensta.go"), err)
 					}
-					logger.Println(filepath.Join(args[1], names.PackageNameFromType(typeSpec.Name.Name), "crud.gensta.go"), "Done")
+					logger.Println(filepath.Join(dir, "crud.gensta.go"), "Done")
 					return false
 				}
 			}
