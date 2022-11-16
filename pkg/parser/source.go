@@ -69,12 +69,5 @@ func NewAstra(srcPath string) (*SourceFile, error) {
 }
 
 func (f SourceFile) ImportPath() string {
-	//moduleAbsPath, err := filepath.Abs(f.ModulePath)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println("ImportPath", f.FilePath, moduleAbsPath, f.Module)
-	//return filepath.Dir(strings.Replace(f.FilePath, moduleAbsPath, f.Module, 1))
-	fmt.Println("ImportPath", f.FilePath, f.ModulePath, f.Module)
 	return filepath.Dir(strings.Replace(f.FilePath, f.ModulePath, f.Module, 1))
 }

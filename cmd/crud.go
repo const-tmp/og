@@ -7,8 +7,10 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/nullc4t/gensta/pkg/inspector"
+	"github.com/nullc4t/gensta/pkg/names"
 	parser2 "github.com/nullc4t/gensta/pkg/parser"
 	"github.com/nullc4t/gensta/pkg/templates"
+	"github.com/nullc4t/gensta/pkg/writer"
 	"github.com/spf13/cobra"
 	"go/ast"
 	"go/format"
@@ -16,14 +18,12 @@ import (
 	"go/printer"
 	"go/token"
 	"golang.org/x/tools/go/ast/astutil"
-	"os"
 	"path/filepath"
-	"strings"
 )
 
 // crudCmd represents the crud command
 var crudCmd = &cobra.Command{
-	Use:     "crud file-with-types output-dir/",
+	Use:     "crud file-with-types output-dir",
 	Aliases: []string{"c", "cr"},
 	Short:   "A brief description of your command",
 	Long: `A longer description that spans multiple lines and likely contains examples
@@ -41,98 +41,62 @@ to quickly create a Cobra application.`,
 			logger.Fatal(err)
 		}
 
-		//fset := token.NewFileSet()
-		//file, err := parser.ParseFile(fset, args[0], nil, 0)
-		//if err != nil {
-		//	logger.Fatal(err)
-		//}
-
-		tmpl, err := templates.NewRoot()
+		tmpl, err := templates.NewCRUD()
 		if err != nil {
 			logger.Fatal(err)
 		}
 
-		tmpl, err = tmpl.Parse(templates.CRUDTemplate)
-		//tmpl, err = tmpl.ParseFiles("templates/crud_repo.tmpl")
-		if err != nil {
-			logger.Fatal(err)
-		}
-
-		//ast.Print(srcFile.FSet, srcFile.ASTFile)
-
-		for _, decl := range srcFile.ASTFile.Decls {
-			gd, ok := decl.(*ast.GenDecl)
-			if !ok {
-				continue
-			}
-			if gd.Tok != token.TYPE {
-				continue
-			}
-			for _, spec := range gd.Specs {
-				ts, ok := spec.(*ast.TypeSpec)
+		ast.Inspect(srcFile.ASTFile, func(node ast.Node) bool {
+			//t.Logf("%T\t%v", node, node)
+			switch typeSpec := node.(type) {
+			case *ast.TypeSpec:
+				v, ok := typeSpec.Type.(*ast.StructType)
 				if !ok {
-					continue
+					return false
 				}
-
-				st, ok := ts.Type.(*ast.StructType)
+				if len(v.Fields.List) == 0 {
+					return false
+				}
+				if v.Fields.List[0].Names != nil {
+					return false
+				}
+				sel, ok := v.Fields.List[0].Type.(*ast.SelectorExpr)
 				if !ok {
-					continue
+					return false
 				}
-
-				if len(st.Fields.List) == 0 {
-					continue
-				}
-
-				if st.Fields.List[0].Names != nil {
-					continue
-				}
-
-				//logger.Println("st.Fields.List[0].Names==nil", st.Fields.List[0].Names == nil)
-				se, ok := st.Fields.List[0].Type.(*ast.SelectorExpr)
+				ident, ok := sel.X.(*ast.Ident)
 				if !ok {
-					continue
+					return false
 				}
-
-				id, ok := se.X.(*ast.Ident)
-				if !ok {
-					continue
-				}
-				if id.Name == "crud" && se.Sel.Name == "Model" {
-					typeName := ts.Name.Name
-					typePackageName := strings.ToLower(typeName)
-					//logger.Println(typeName, typePackageName)
+				if ident.Name == "crud" && sel.Sel.Name == "Model" {
+					// execute template
 					tmp := new(bytes.Buffer)
-					//err = tmpl.ExecuteTemplate(tmp, "crud_repo.tmpl", map[string]any{
 					err = tmpl.Execute(tmp, map[string]any{
-						"Package": typePackageName,
-						"Type":    fmt.Sprintf("%s.%s", srcFile.Package, typeName),
+						"Package": names.PackageNameFromType(typeSpec.Name.Name),
+						"Type":    names.TypeNameWithPackage(srcFile.Package, typeSpec.Name.Name),
 					})
 					if err != nil {
 						logger.Fatal(err)
 					}
 
-					//fmt.Println(string(tmp.Bytes()))
-
+					// add imports
 					fset := token.NewFileSet()
 					file, err := astparser.ParseFile(fset, "", tmp.Bytes(), 0)
 					if err != nil {
 						logger.Fatal(err)
 					}
-
-					logger.Println("adding import:", srcFile.ImportPath())
+					//logger.Println("adding import:", srcFile.ImportPath())
 					ok := astutil.AddImport(fset, file, srcFile.ImportPath())
 					if !ok {
 						logger.Fatal("not ok")
 					}
-
 					for t, _ := range inspector.GetImportedTypes(srcFile.Astra) {
 						p := inspector.ExtractPackageFromType(t)
 						if importPath := inspector.GetImportPathForPackage(p, srcFile.Astra); importPath != "" {
-							logger.Println("adding import:", importPath)
+							//logger.Println("adding import:", importPath)
 							astutil.AddImport(fset, file, importPath)
 						}
 					}
-
 					ast.SortImports(fset, file)
 
 					tmp = new(bytes.Buffer)
@@ -141,42 +105,22 @@ to quickly create a Cobra application.`,
 						logger.Fatal(err)
 					}
 
+					// format code
 					formatted, err := format.Source(tmp.Bytes())
 					if err != nil {
 						logger.Fatal(err)
 					}
 
-					writePath := filepath.Join(args[1], typePackageName, "crud.gensta.go")
-					f, err := os.OpenFile(writePath, os.O_WRONLY|os.O_CREATE, 0644)
-					if os.IsNotExist(err) {
-						err = os.MkdirAll(filepath.Dir(writePath), 0755)
-						if err != nil {
-							logger.Fatal(err)
-						}
-
-						f, err = os.Create(writePath)
-						if err != nil {
-							logger.Fatal(err)
-						}
-
-					}
+					err = writer.File(filepath.Join(args[1], names.PackageNameFromType(typeSpec.Name.Name)), "crud.gensta.go", formatted)
 					if err != nil {
-						logger.Fatal(err)
+						logger.Fatal(filepath.Join(args[1], names.PackageNameFromType(typeSpec.Name.Name), "crud.gensta.go"), err)
 					}
-
-					_, err = f.Write(formatted)
-					if err != nil {
-						logger.Fatal(err)
-					}
-					f.Close()
-
-					fmt.Println("Done")
+					logger.Println(filepath.Join(args[1], names.PackageNameFromType(typeSpec.Name.Name), "crud.gensta.go"), "Done")
+					return false
 				}
-
 			}
-		}
-		//logger.Println(i, decl)
-		//ast.Print(fset, decl)
+			return true
+		})
 	},
 }
 
