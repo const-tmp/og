@@ -25,8 +25,8 @@ type impl struct {
 	crud crud.GenericCRUD[{{ .Type }}]
 }
 
-func NewCRUD(db *gorm.DB) CRUD {
-	return impl{db, crud.New[{{ .Type }}](db)}
+func NewCRUD(db *gorm.DB, omit ...string) CRUD {
+	return impl{db, crud.New[{{ .Type }}](db, omit...)}
 }
 
 func (i impl) Create(ctx context.Context, v {{ .Type }}, omit ...string) (*{{ .Type }}, error) {
