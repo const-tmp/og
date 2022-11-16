@@ -9,8 +9,9 @@ import (
 
 // genCmd represents the gen command
 var genCmd = &cobra.Command{
-	Use:   "gen",
-	Short: "Generates source files",
+	Use:     "gen",
+	Aliases: []string{"g"},
+	Short:   "Generates source files",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 

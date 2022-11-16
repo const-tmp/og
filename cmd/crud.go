@@ -52,7 +52,8 @@ to quickly create a Cobra application.`,
 			logger.Fatal(err)
 		}
 
-		tmpl, err = tmpl.ParseFiles("templates/crud_repo.tmpl")
+		tmpl, err = tmpl.Parse(templates.CRUDTemplate)
+		//tmpl, err = tmpl.ParseFiles("templates/crud_repo.tmpl")
 		if err != nil {
 			logger.Fatal(err)
 		}
@@ -77,14 +78,32 @@ to quickly create a Cobra application.`,
 				if !ok {
 					continue
 				}
+
+				if len(st.Fields.List) == 0 {
+					continue
+				}
+
+				if st.Fields.List[0].Names != nil {
+					continue
+				}
+
 				//logger.Println("st.Fields.List[0].Names==nil", st.Fields.List[0].Names == nil)
-				id, ok := st.Fields.List[0].Type.(*ast.Ident)
-				if len(st.Fields.List) > 0 && st.Fields.List[0].Names == nil && ok && id.Name == "Model" {
+				se, ok := st.Fields.List[0].Type.(*ast.SelectorExpr)
+				if !ok {
+					continue
+				}
+
+				id, ok := se.X.(*ast.Ident)
+				if !ok {
+					continue
+				}
+				if id.Name == "crud" && se.Sel.Name == "Model" {
 					typeName := ts.Name.Name
 					typePackageName := strings.ToLower(typeName)
-					logger.Println(typeName, typePackageName)
+					//logger.Println(typeName, typePackageName)
 					tmp := new(bytes.Buffer)
-					err = tmpl.ExecuteTemplate(tmp, "crud_repo.tmpl", map[string]any{
+					//err = tmpl.ExecuteTemplate(tmp, "crud_repo.tmpl", map[string]any{
+					err = tmpl.Execute(tmp, map[string]any{
 						"Package": typePackageName,
 						"Type":    fmt.Sprintf("%s.%s", srcFile.Package, typeName),
 					})
@@ -92,7 +111,7 @@ to quickly create a Cobra application.`,
 						logger.Fatal(err)
 					}
 
-					fmt.Println(string(tmp.Bytes()))
+					//fmt.Println(string(tmp.Bytes()))
 
 					fset := token.NewFileSet()
 					file, err := astparser.ParseFile(fset, "", tmp.Bytes(), 0)
@@ -100,6 +119,7 @@ to quickly create a Cobra application.`,
 						logger.Fatal(err)
 					}
 
+					logger.Println("adding import:", srcFile.ImportPath())
 					ok := astutil.AddImport(fset, file, srcFile.ImportPath())
 					if !ok {
 						logger.Fatal("not ok")
@@ -108,6 +128,7 @@ to quickly create a Cobra application.`,
 					for t, _ := range inspector.GetImportedTypes(srcFile.Astra) {
 						p := inspector.ExtractPackageFromType(t)
 						if importPath := inspector.GetImportPathForPackage(p, srcFile.Astra); importPath != "" {
+							logger.Println("adding import:", importPath)
 							astutil.AddImport(fset, file, importPath)
 						}
 					}
@@ -125,7 +146,7 @@ to quickly create a Cobra application.`,
 						logger.Fatal(err)
 					}
 
-					writePath := filepath.Join(args[1], typePackageName, "repo.gensta.go")
+					writePath := filepath.Join(args[1], typePackageName, "crud.gensta.go")
 					f, err := os.OpenFile(writePath, os.O_WRONLY|os.O_CREATE, 0644)
 					if os.IsNotExist(err) {
 						err = os.MkdirAll(filepath.Dir(writePath), 0755)
@@ -142,19 +163,20 @@ to quickly create a Cobra application.`,
 					if err != nil {
 						logger.Fatal(err)
 					}
-					defer f.Close()
 
 					_, err = f.Write(formatted)
 					if err != nil {
 						logger.Fatal(err)
 					}
+					f.Close()
 
 					fmt.Println("Done")
 				}
+
 			}
-			//logger.Println(i, decl)
-			//ast.Print(fset, decl)
 		}
+		//logger.Println(i, decl)
+		//ast.Print(fset, decl)
 	},
 }
 

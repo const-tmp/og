@@ -1,4 +1,6 @@
-package {{ .Package }}
+package templates
+
+var CRUDTemplate = `package {{ .Package }}
 
 import (
 	"context"
@@ -61,4 +63,4 @@ func (i impl) UpdateMap(ctx context.Context, v map[string]any) error {
 
 func (i impl) Delete(ctx context.Context, v {{ .Type }}) error {
 	return i.crud.Delete(ctx, v)
-}
+}`

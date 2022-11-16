@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"github.com/nullc4t/gensta/pkg/inspector"
 	"github.com/vetcher/go-astra"
 	"github.com/vetcher/go-astra/types"
@@ -25,6 +26,11 @@ type SourceFile struct {
 const SearchUpDirLimit = 5
 
 func NewAstra(srcPath string) (*SourceFile, error) {
+	absPath, err := filepath.Abs(srcPath)
+	if err != nil {
+		return nil, fmt.Errorf("file abs path error: %w", err)
+	}
+
 	f, err := astra.ParseFile(srcPath)
 	if err != nil {
 		log.Println("astra error:", err)
@@ -35,7 +41,10 @@ func NewAstra(srcPath string) (*SourceFile, error) {
 		return nil, err
 	}
 
-	modulePath := filepath.Dir(srcGoMod)
+	absModulePath, err := filepath.Abs(filepath.Dir(srcGoMod))
+	if err != nil {
+		return nil, fmt.Errorf("file abs path error: %w", err)
+	}
 
 	srcModule, err := inspector.GetModuleNameFromGoMod(srcGoMod)
 	if err != nil {
@@ -49,16 +58,23 @@ func NewAstra(srcPath string) (*SourceFile, error) {
 	}
 
 	return &SourceFile{
-		FilePath:   srcPath,
+		FilePath:   absPath,
 		Astra:      f,
 		Package:    file.Name.Name,
 		Module:     srcModule,
-		ModulePath: modulePath,
+		ModulePath: absModulePath,
 		ASTFile:    file,
 		FSet:       fset,
 	}, nil
 }
 
 func (f SourceFile) ImportPath() string {
+	//moduleAbsPath, err := filepath.Abs(f.ModulePath)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println("ImportPath", f.FilePath, moduleAbsPath, f.Module)
+	//return filepath.Dir(strings.Replace(f.FilePath, moduleAbsPath, f.Module, 1))
+	fmt.Println("ImportPath", f.FilePath, f.ModulePath, f.Module)
 	return filepath.Dir(strings.Replace(f.FilePath, f.ModulePath, f.Module, 1))
 }
