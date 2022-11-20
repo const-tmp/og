@@ -2,6 +2,7 @@ package generator
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/nullc4t/gensta/pkg/source"
 	"go/ast"
 	"go/format"
@@ -55,6 +56,38 @@ func New(src *source.File, tmpl *template.Template, dot Dot, fw FileWriter, dstP
 	u.editAfter = append(u.editAfter, Formatter)
 	return u
 }
+
+func AddImportsFactory(imports ...string) CodeEditor {
+	return func(code SourceCode) (SourceCode, error) {
+		fset := token.NewFileSet()
+
+		file, err := astparser.ParseFile(fset, "", code, astparser.ParseComments)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, s := range imports {
+			ok := astutil.AddImport(fset, file, s)
+			if !ok {
+				return nil, fmt.Errorf("add import %s is not ok", s)
+			}
+		}
+
+		ast.SortImports(fset, file)
+
+		tmp := new(bytes.Buffer)
+
+		err = printer.Fprint(tmp, fset, file)
+		if err != nil {
+			return nil, err
+		}
+
+		return tmp, nil
+
+	}
+}
+
+//func AddImports(code SourceCode) (SourceCode, error) {}
 
 func (u Unit) AddSourcePackageToImports(code SourceCode) (SourceCode, error) {
 	fset := token.NewFileSet()

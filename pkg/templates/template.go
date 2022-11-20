@@ -22,3 +22,11 @@ func NewRepo() (*template.Template, error) {
 	}
 	return tmlp, nil
 }
+
+func NewGeneralRepo() (*template.Template, error) {
+	tmlp, err := template.New("general_repo").Funcs(FuncMap).Parse(GeneralRepo)
+	if err != nil {
+		return nil, err
+	}
+	return tmlp, nil
+}

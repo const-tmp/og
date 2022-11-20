@@ -21,7 +21,7 @@ type (
 	}
 )
 
-func NewRepo(db *gorm.DB, omit ...string) Repo {
+func New(db *gorm.DB, omit ...string) Repo {
 	return repo{db, NewCRUD(db, omit...)}
 }
 
