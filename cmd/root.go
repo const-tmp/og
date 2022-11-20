@@ -1,6 +1,3 @@
-/*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -17,7 +14,7 @@ var logger = log.New(os.Stdout, "[ root ]\t", log.Llongfile|log.Lmsgprefix|log.L
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "gensta",
+	Use:   "og",
 	Short: "A brief description of your application",
 	Long: `A longer description that spans multiple lines and likely contains
 examples and usage of using your application. For example:
@@ -48,7 +45,7 @@ func init() {
 	// will be global for your application.
 	//logger.Println("reading flags")
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "c", "config file (default is $HOME/.gensta.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "c", "config file (default is $HOME/.og.yaml)")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
@@ -73,11 +70,11 @@ func initConfig() {
 		home, err := os.UserHomeDir()
 		cobra.CheckErr(err)
 
-		// Search config in home directory with name ".gensta" (without extension).
+		// Search config in home directory with name ".og" (without extension).
 		viper.AddConfigPath(home)
 		viper.AddConfigPath(wd)
 		viper.SetConfigType("yaml")
-		viper.SetConfigName(".gensta")
+		viper.SetConfigName(".og")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match

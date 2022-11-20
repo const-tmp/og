@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/nullc4t/gensta/pkg/inspector"
+	"github.com/nullc4t/og/pkg/inspector"
 	"github.com/stretchr/testify/require"
 	"io/fs"
 	"os"

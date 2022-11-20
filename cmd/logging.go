@@ -1,15 +1,12 @@
-/*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/nullc4t/gensta/pkg/inspector"
-	"github.com/nullc4t/gensta/pkg/parser"
-	"github.com/nullc4t/gensta/pkg/templates"
+	"github.com/nullc4t/og/pkg/inspector"
+	"github.com/nullc4t/og/pkg/parser"
+	"github.com/nullc4t/og/pkg/templates"
 	"github.com/spf13/cobra"
 	"github.com/vetcher/go-astra/types"
 	"go/ast"
@@ -34,7 +31,7 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	Example: "gensta gen logging service.go middleware/logging.go",
+	Example: "og gen logging service.go middleware/logging.go",
 	Args:    cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		srcFile, err := parser.NewAstra(args[0])

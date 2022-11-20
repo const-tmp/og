@@ -2,8 +2,8 @@ package generator
 
 import (
 	"bytes"
-	"github.com/nullc4t/gensta/pkg/editor"
-	"github.com/nullc4t/gensta/pkg/source"
+	"github.com/nullc4t/og/pkg/editor"
+	"github.com/nullc4t/og/pkg/source"
 	"go/format"
 	"text/template"
 )

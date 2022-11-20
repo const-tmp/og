@@ -6,7 +6,7 @@ import (
 )
 
 func NewRoot() (*template.Template, error) {
-	t := template.New("gensta")
+	t := template.New("og")
 	t = t.Funcs(template.FuncMap{
 		"argNames":        argNames,
 		"args":            argsSting,

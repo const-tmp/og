@@ -2,7 +2,7 @@ package source
 
 import (
 	"fmt"
-	"github.com/nullc4t/gensta/pkg/inspector"
+	"github.com/nullc4t/og/pkg/inspector"
 	"go/ast"
 	"go/parser"
 	"go/token"

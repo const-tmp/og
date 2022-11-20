@@ -1,16 +1,13 @@
-/*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
-	"github.com/nullc4t/gensta/pkg/editor"
-	"github.com/nullc4t/gensta/pkg/generator"
-	"github.com/nullc4t/gensta/pkg/names"
-	"github.com/nullc4t/gensta/pkg/source"
-	"github.com/nullc4t/gensta/pkg/templates"
-	"github.com/nullc4t/gensta/pkg/utils"
-	"github.com/nullc4t/gensta/pkg/writer"
+	"github.com/nullc4t/og/pkg/editor"
+	"github.com/nullc4t/og/pkg/generator"
+	"github.com/nullc4t/og/pkg/names"
+	"github.com/nullc4t/og/pkg/source"
+	"github.com/nullc4t/og/pkg/templates"
+	"github.com/nullc4t/og/pkg/utils"
+	"github.com/nullc4t/og/pkg/writer"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go/ast"
@@ -29,16 +26,16 @@ var crudCmd = &cobra.Command{
 
 Example:
 cd internal
-gensta gen types/crud -f types/typeA.go -f typeB.go .
+og gen types/crud -f types/typeA.go -f typeB.go .
 
 generates:
 
 internal
 ├── a
-│	├── crud.gensta.go
+│	├── crud.og.go
 │	└── repo.go
 ├── b
-│	├── crud.gensta.go
+│	├── crud.og.go
 │	└── repo.go
 ├── repo
 │	└── repo.go
@@ -47,7 +44,7 @@ internal
     └── typeB.go
 `,
 	Args:    cobra.ExactArgs(1),
-	Example: "gensta gen crud types.go models/",
+	Example: "og gen crud types.go models/",
 	Run: func(cmd *cobra.Command, args []string) {
 		crudTmpl, err := templates.NewCRUD()
 		if err != nil {
@@ -62,11 +59,6 @@ internal
 			logger.Fatal(err)
 		}
 
-		//logger.Fatal(viper.GetStringSlice("files"))
-		//src, err := source.NewFile(args[0])
-		//if err != nil {
-		//	logger.Fatal(err)
-		//}
 		var repos []map[string]any
 		var imports []string
 
@@ -104,7 +96,7 @@ internal
 							"Type":    names.TypeNameWithPackage(src.Package, typeSpec.Name.Name),
 						}
 
-						crudPath := filepath.Join(dir, "crud.gensta.go")
+						crudPath := filepath.Join(dir, "crud.og.go")
 						crudUnit := generator.New(src, crudTmpl, dot, writer.File, crudPath)
 						err = crudUnit.Generate()
 						if err != nil {

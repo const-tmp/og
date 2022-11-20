@@ -1,9 +1,6 @@
-/*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-*/
 package main
 
-import "github.com/nullc4t/gensta/cmd"
+import "github.com/nullc4t/og/cmd"
 
 func main() {
 	cmd.Execute()

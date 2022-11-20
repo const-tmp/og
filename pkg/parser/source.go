@@ -2,7 +2,7 @@ package parser
 
 import (
 	"fmt"
-	"github.com/nullc4t/gensta/pkg/inspector"
+	"github.com/nullc4t/og/pkg/inspector"
 	"github.com/vetcher/go-astra"
 	"github.com/vetcher/go-astra/types"
 	"go/ast"
