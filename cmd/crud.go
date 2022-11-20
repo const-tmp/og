@@ -4,6 +4,7 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"github.com/nullc4t/gensta/pkg/editor"
 	"github.com/nullc4t/gensta/pkg/generator"
 	"github.com/nullc4t/gensta/pkg/names"
 	"github.com/nullc4t/gensta/pkg/source"
@@ -18,15 +19,33 @@ import (
 
 // crudCmd represents the crud command
 var crudCmd = &cobra.Command{
-	Use:     "crud -f file.go [-f file.go]... output-dir",
+	Use:     "crud -f file.go [-f file.go]... [] output-dir",
 	Aliases: []string{"c", "cr"},
-	Short:   "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short:   "Implements DB CRUD interface",
+	Long: `Generates:
+1. CRUD Interface and impl
+2. Repo to be edited by user
+3. General DB Repo with shorthands for every type Repo
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Example:
+cd internal
+gensta gen types/crud -f types/typeA.go -f typeB.go .
+
+generates:
+
+internal
+├── a
+│	├── crud.gensta.go
+│	└── repo.go
+├── b
+│	├── crud.gensta.go
+│	└── repo.go
+├── repo
+│	└── repo.go
+└── types
+    ├── typeA.go
+    └── typeB.go
+`,
 	Args:    cobra.ExactArgs(1),
 	Example: "gensta gen crud types.go models/",
 	Run: func(cmd *cobra.Command, args []string) {
@@ -97,7 +116,7 @@ to quickly create a Cobra application.`,
 						if err != nil {
 							logger.Fatal("check exists", repoPath, "error:", err)
 						}
-						if !ok {
+						if !ok || viper.GetBool("regen") {
 							repoUnit := generator.New(src, repoTmpl, dot, writer.File, repoPath)
 							err = repoUnit.Generate()
 							if err != nil {
@@ -130,15 +149,15 @@ to quickly create a Cobra application.`,
 		if err != nil {
 			logger.Fatal("check exists", genRepoPath, "error:", err)
 		}
-		if !ok {
+		if !ok || viper.GetBool("regen") {
 			genRepoUnit := generator.NewUnit(
 				nil,
 				genRepoTmpl,
 				map[string]any{
 					"PackageName": "repo",
 					"Repos":       repos,
-				}, []generator.CodeEditor{
-					generator.AddImportsFactory(imports...),
+				}, []editor.CodeEditor{
+					editor.AddImportsFactory(imports...),
 					generator.Formatter,
 				}, genRepoPath,
 				writer.File,
@@ -166,6 +185,9 @@ func init() {
 	// is called directly, e.g.:
 	// crudCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
-	crudCmd.Flags().StringArrayP("file", "f", nil, "-f file.go")
+	crudCmd.Flags().StringArrayP("file", "f", nil, "files to be parsed; might be provided multiple times; example: -f file.go")
 	_ = viper.BindPFlag("files", crudCmd.Flag("file"))
+
+	crudCmd.Flags().BoolP("regen", "r", false, "regenerate existing files")
+	_ = viper.BindPFlag("files", crudCmd.Flag("regen"))
 }

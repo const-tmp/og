@@ -2,14 +2,9 @@ package generator
 
 import (
 	"bytes"
-	"fmt"
+	"github.com/nullc4t/gensta/pkg/editor"
 	"github.com/nullc4t/gensta/pkg/source"
-	"go/ast"
 	"go/format"
-	astparser "go/parser"
-	"go/printer"
-	"go/token"
-	"golang.org/x/tools/go/ast/astutil"
 	"text/template"
 )
 
@@ -17,7 +12,7 @@ type (
 	Dot        any
 	DotGetter  func() Dot
 	SourceCode = *bytes.Buffer
-	CodeEditor func(SourceCode) (SourceCode, error)
+
 	FileWriter func(path string, data SourceCode) error
 )
 
@@ -26,13 +21,13 @@ type (
 		src        *source.File
 		template   *template.Template
 		dot        Dot
-		editAfter  []CodeEditor
+		editAfter  []editor.CodeEditor
 		dstPath    string
 		fileWriter FileWriter
 	}
 )
 
-func NewUnit(src *source.File, template *template.Template, dot Dot, editAfter []CodeEditor, dstPath string, fileWriter FileWriter) *Unit {
+func NewUnit(src *source.File, template *template.Template, dot Dot, editAfter []editor.CodeEditor, dstPath string, fileWriter FileWriter) *Unit {
 	return &Unit{
 		src:        src,
 		template:   template,
@@ -52,66 +47,10 @@ func New(src *source.File, tmpl *template.Template, dot Dot, fw FileWriter, dstP
 		dstPath:    dstPath,
 		fileWriter: fw,
 	}
-	u.editAfter = append(u.editAfter, u.AddSourcePackageToImports)
+	//u.editAfter = append(u.editAfter, u.AddSourcePackageToImports)
+	u.editAfter = append(u.editAfter, editor.AddImportsFactory(src.ImportPath()))
 	u.editAfter = append(u.editAfter, Formatter)
 	return u
-}
-
-func AddImportsFactory(imports ...string) CodeEditor {
-	return func(code SourceCode) (SourceCode, error) {
-		fset := token.NewFileSet()
-
-		file, err := astparser.ParseFile(fset, "", code, astparser.ParseComments)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, s := range imports {
-			ok := astutil.AddImport(fset, file, s)
-			if !ok {
-				return nil, fmt.Errorf("add import %s is not ok", s)
-			}
-		}
-
-		ast.SortImports(fset, file)
-
-		tmp := new(bytes.Buffer)
-
-		err = printer.Fprint(tmp, fset, file)
-		if err != nil {
-			return nil, err
-		}
-
-		return tmp, nil
-
-	}
-}
-
-//func AddImports(code SourceCode) (SourceCode, error) {}
-
-func (u Unit) AddSourcePackageToImports(code SourceCode) (SourceCode, error) {
-	fset := token.NewFileSet()
-
-	file, err := astparser.ParseFile(fset, "", code, astparser.ParseComments)
-	if err != nil {
-		return nil, err
-	}
-
-	ok := astutil.AddImport(fset, file, u.src.ImportPath())
-	if !ok {
-		return nil, err
-	}
-
-	ast.SortImports(fset, file)
-
-	tmp := new(bytes.Buffer)
-
-	err = printer.Fprint(tmp, fset, file)
-	if err != nil {
-		return nil, err
-	}
-
-	return tmp, nil
 }
 
 func (u Unit) Generate() error {
@@ -122,8 +61,8 @@ func (u Unit) Generate() error {
 		return err
 	}
 
-	for _, editor := range u.editAfter {
-		tmp, err = editor(tmp)
+	for _, codeEditor := range u.editAfter {
+		tmp, err = codeEditor(tmp)
 		if err != nil {
 			return err
 		}
