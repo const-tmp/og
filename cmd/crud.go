@@ -4,20 +4,17 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"bytes"
+	"errors"
 	"fmt"
-	"github.com/nullc4t/gensta/pkg/inspector"
+	"github.com/nullc4t/gensta/pkg/generator"
 	"github.com/nullc4t/gensta/pkg/names"
-	parser2 "github.com/nullc4t/gensta/pkg/parser"
+	"github.com/nullc4t/gensta/pkg/source"
 	"github.com/nullc4t/gensta/pkg/templates"
 	"github.com/nullc4t/gensta/pkg/writer"
 	"github.com/spf13/cobra"
 	"go/ast"
-	"go/format"
-	astparser "go/parser"
-	"go/printer"
-	"go/token"
-	"golang.org/x/tools/go/ast/astutil"
+	"io/fs"
+	"os"
 	"path/filepath"
 )
 
@@ -36,21 +33,30 @@ to quickly create a Cobra application.`,
 	Example: "gensta gen crud types.go models/",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("crud called")
-		srcFile, err := parser2.NewAstra(args[0])
+		//srcFile, err := parser2.NewAstra(args[0])
+		//if err != nil {
+		//	logger.Fatal(err)
+		//}
+
+		crudTmpl, err := templates.NewCRUD()
+		if err != nil {
+			logger.Fatal(err)
+		}
+		repoTmpl, err := templates.NewRepo()
 		if err != nil {
 			logger.Fatal(err)
 		}
 
-		tmpl, err := templates.NewCRUD()
+		src, err := source.NewFile(args[0])
 		if err != nil {
 			logger.Fatal(err)
 		}
 
-		ast.Inspect(srcFile.ASTFile, func(node ast.Node) bool {
-			//t.Logf("%T\t%v", node, node)
+		ast.Inspect(src.AST, func(node ast.Node) bool {
 			switch typeSpec := node.(type) {
 			case *ast.TypeSpec:
 				v, ok := typeSpec.Type.(*ast.StructType)
+				dir := filepath.Join(args[1], names.PackageNameFromType(typeSpec.Name.Name))
 				if !ok {
 					return false
 				}
@@ -68,55 +74,33 @@ to quickly create a Cobra application.`,
 				if !ok {
 					return false
 				}
+
 				if ident.Name == "crud" && sel.Sel.Name == "Model" {
-					// execute template
-					tmp := new(bytes.Buffer)
-					err = tmpl.Execute(tmp, map[string]any{
+					dot := map[string]any{
 						"Package": names.PackageNameFromType(typeSpec.Name.Name),
-						"Type":    names.TypeNameWithPackage(srcFile.Package, typeSpec.Name.Name),
-					})
-					if err != nil {
-						logger.Fatal(err)
+						"Type":    names.TypeNameWithPackage(src.Package, typeSpec.Name.Name),
 					}
 
-					// add imports
-					fset := token.NewFileSet()
-					file, err := astparser.ParseFile(fset, "", tmp.Bytes(), 0)
+					crudPath := filepath.Join(dir, "crud.gensta.go")
+					crudUnit := generator.New(src, crudTmpl, dot, writer.File, crudPath)
+					err = crudUnit.Generate()
 					if err != nil {
-						logger.Fatal(err)
+						logger.Fatal("generate crud error:", err)
 					}
-					//logger.Println("adding import:", srcFile.ImportPath())
-					ok := astutil.AddImport(fset, file, srcFile.ImportPath())
-					if !ok {
-						logger.Fatal("not ok")
-					}
-					for t, _ := range inspector.GetImportedTypes(srcFile.Astra) {
-						p := inspector.ExtractPackageFromType(t)
-						if importPath := inspector.GetImportPathForPackage(p, srcFile.Astra); importPath != "" {
-							//logger.Println("adding import:", importPath)
-							astutil.AddImport(fset, file, importPath)
+
+					repoPath := filepath.Join(dir, "repo.go")
+					f, err := os.Open(repoPath)
+					if err != nil {
+						if !errors.Is(err, fs.ErrNotExist) {
+							logger.Fatal("open file", repoPath, "error:", err)
+						}
+						repoUnit := generator.New(src, repoTmpl, dot, writer.File, repoPath)
+						err = repoUnit.Generate()
+						if err != nil {
+							logger.Fatal("generate repo error:", err)
 						}
 					}
-					ast.SortImports(fset, file)
-
-					tmp = new(bytes.Buffer)
-					err = printer.Fprint(tmp, fset, file)
-					if err != nil {
-						logger.Fatal(err)
-					}
-
-					// format code
-					formatted, err := format.Source(tmp.Bytes())
-					if err != nil {
-						logger.Fatal(err)
-					}
-
-					dir := filepath.Join(args[1], names.PackageNameFromType(typeSpec.Name.Name))
-					err = writer.File(dir, "crud.gensta.go", formatted)
-					if err != nil {
-						logger.Fatal(filepath.Join(dir, "crud.gensta.go"), err)
-					}
-					logger.Println(filepath.Join(dir, "crud.gensta.go"), "Done")
+					f.Close()
 					return false
 				}
 			}

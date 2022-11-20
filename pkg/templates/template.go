@@ -14,3 +14,11 @@ func NewCRUD() (*template.Template, error) {
 	}
 	return tmlp, nil
 }
+
+func NewRepo() (*template.Template, error) {
+	tmlp, err := template.New("repo").Funcs(FuncMap).Parse(CRUDRepoTemplate)
+	if err != nil {
+		return nil, err
+	}
+	return tmlp, nil
+}

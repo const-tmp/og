@@ -1,10 +1,8 @@
-package parser
+package source
 
 import (
 	"fmt"
 	"github.com/nullc4t/gensta/pkg/inspector"
-	"github.com/vetcher/go-astra"
-	"github.com/vetcher/go-astra/types"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -13,61 +11,55 @@ import (
 	"strings"
 )
 
-type SourceFile struct {
+type File struct {
 	FilePath   string
 	Package    string
 	Module     string
 	ModulePath string
-	Astra      *types.File
-	ASTFile    *ast.File
 	FSet       *token.FileSet
+	AST        *ast.File
 }
 
 const SearchUpDirLimit = 5
 
-func NewAstra(srcPath string) (*SourceFile, error) {
-	absPath, err := filepath.Abs(srcPath)
+func NewFile(path string) (*File, error) {
+	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, fmt.Errorf("file abs path error: %w", err)
 	}
 
-	f, err := astra.ParseFile(srcPath)
-	if err != nil {
-		log.Println("astra error:", err)
-	}
-
-	srcGoMod, err := inspector.SearchFileUp("go.mod", filepath.Dir(srcPath), SearchUpDirLimit)
+	goMod, err := inspector.SearchFileUp("go.mod", filepath.Dir(absPath), SearchUpDirLimit)
 	if err != nil {
 		return nil, err
 	}
 
-	absModulePath, err := filepath.Abs(filepath.Dir(srcGoMod))
+	absModulePath, err := filepath.Abs(filepath.Dir(goMod))
 	if err != nil {
 		return nil, fmt.Errorf("file abs path error: %w", err)
 	}
 
-	srcModule, err := inspector.GetModuleNameFromGoMod(srcGoMod)
+	module, err := inspector.GetModuleNameFromGoMod(goMod)
 	if err != nil {
 		return nil, err
 	}
 
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, srcPath, nil, parser.ParseComments)
+
+	file, err := parser.ParseFile(fset, absPath, nil, parser.ParseComments)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return &SourceFile{
+	return &File{
 		FilePath:   absPath,
-		Astra:      f,
 		Package:    file.Name.Name,
-		Module:     srcModule,
+		Module:     module,
 		ModulePath: absModulePath,
-		ASTFile:    file,
 		FSet:       fset,
+		AST:        file,
 	}, nil
 }
 
-func (f SourceFile) ImportPath() string {
+func (f File) ImportPath() string {
 	return filepath.Dir(strings.Replace(f.FilePath, f.ModulePath, f.Module, 1))
 }
