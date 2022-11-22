@@ -1,9 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"github.com/nullc4t/og/pkg/inspector"
 	"github.com/stretchr/testify/require"
+	"go/ast"
+	"go/parser"
+	"go/printer"
+	"go/token"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"testing"
@@ -53,4 +59,66 @@ func TestPath(t *testing.T) {
 	mod, err := inspector.GetModuleNameFromGoMod(path)
 	require.NoError(t, err)
 	t.Log(mod)
+}
+
+func TestComments(t *testing.T) {
+	// parse file
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, "/Users/hightime/code/kk/core/internal/types/core.go", nil, parser.ParseComments)
+	require.NoError(t, err)
+
+	var comments []*ast.CommentGroup
+	//ast.Inspect(node, func(n ast.Node) bool {
+	//	// collect comments
+	//	c, ok := n.(*ast.CommentGroup)
+	//	if ok {
+	//		comments = append(comments, c)
+	//	}
+	//	// handle function declarations without documentation
+	//	fn, ok := n.(*ast.TypeSpec)
+	//	if ok {
+	//		if fn.Name.IsExported() && fn.Doc.Text() == "" {
+	//			// print warning
+	//			fmt.Printf("exported function declaration without documentation found on line %d: \n\t%s\n", fset.Position(fn.Pos()).Line, fn.Name.Name)
+	//		}
+	//	}
+	//	return true
+	//})
+	ast.Inspect(node, func(n ast.Node) bool {
+		// collect comments
+		c, ok := n.(*ast.CommentGroup)
+		if ok {
+			comments = append(comments, c)
+		}
+
+		// handle function declarations without documentation
+		fn, ok := n.(*ast.TypeSpec)
+		if ok {
+			if fn.Name.IsExported() && fn.Doc.Text() == "" {
+				// print warning
+				fmt.Printf("exported function declaration without documentation found on line %d: \n\t%s\n", fset.Position(fn.Pos()).Line, fn.Name.Name)
+				// create todo-comment
+				comment := &ast.Comment{
+					Text:  "// TODO: document exported function",
+					Slash: fn.Pos() - 1,
+				}
+				// create CommentGroup and set it to the function's documentation comment
+				cg := &ast.CommentGroup{
+					List: []*ast.Comment{comment},
+				}
+				fn.Doc = cg
+				fmt.Println()
+			}
+		}
+		return true
+	})
+	// set ast's comments to the collected comments
+	node.Comments = comments
+	// write new ast to file
+	f, err := os.Create("new.go")
+	defer f.Close()
+	if err := printer.Fprint(f, fset, node); err != nil {
+		log.Fatal(err)
+	}
+
 }

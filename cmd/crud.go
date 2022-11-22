@@ -71,7 +71,7 @@ internal
 				switch typeSpec := node.(type) {
 				case *ast.TypeSpec:
 					v, ok := typeSpec.Type.(*ast.StructType)
-					dir := filepath.Join(args[0], names.PackageNameFromType(typeSpec.Name.Name))
+					dir := filepath.Join(args[0], "repo", names.PackageNameFromType(typeSpec.Name.Name))
 					if !ok {
 						return false
 					}
@@ -96,6 +96,8 @@ internal
 							"Type":    names.TypeNameWithPackage(src.Package, typeSpec.Name.Name),
 						}
 
+						logger.Println("creating CRUD for", typeSpec.Name.Name)
+
 						crudPath := filepath.Join(dir, "crud.og.go")
 						crudUnit := generator.New(src, crudTmpl, dot, writer.File, crudPath)
 						err = crudUnit.Generate()
@@ -109,6 +111,8 @@ internal
 							logger.Fatal("check exists", repoPath, "error:", err)
 						}
 						if !ok || viper.GetBool("regen") {
+							logger.Println("creating Repo for", typeSpec.Name.Name)
+
 							repoUnit := generator.New(src, repoTmpl, dot, writer.File, repoPath)
 							err = repoUnit.Generate()
 							if err != nil {
@@ -142,6 +146,8 @@ internal
 			logger.Fatal("check exists", genRepoPath, "error:", err)
 		}
 		if !ok || viper.GetBool("regen") {
+			logger.Println("creating gen Repo")
+
 			genRepoUnit := generator.NewUnit(
 				nil,
 				genRepoTmpl,
@@ -181,5 +187,5 @@ func init() {
 	_ = viper.BindPFlag("files", crudCmd.Flag("file"))
 
 	crudCmd.Flags().BoolP("regen", "r", false, "regenerate existing files")
-	_ = viper.BindPFlag("files", crudCmd.Flag("regen"))
+	_ = viper.BindPFlag("regen", crudCmd.Flag("regen"))
 }

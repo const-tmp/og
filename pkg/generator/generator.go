@@ -14,9 +14,7 @@ type (
 	SourceCode = *bytes.Buffer
 
 	FileWriter func(path string, data SourceCode) error
-)
 
-type (
 	Unit struct {
 		src        *source.File
 		template   *template.Template
