@@ -31,8 +31,8 @@ type impl struct {
 }
 
 // NewCRUD is a constructor
-func NewCRUD(db *gorm.DB, omit ...string) CRUD {
-	return impl{db, crud.New[{{ .Type }}](db, omit...)}
+func NewCRUD(db *gorm.DB) CRUD {
+	return impl{db, crud.New[{{ .Type }}](db)}
 }
 
 func (i impl) Create(ctx context.Context, v {{ .Type }}, omit ...string) (*{{ .Type }}, error) {

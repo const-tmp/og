@@ -16,7 +16,7 @@ import (
 
 // crudCmd represents the crud command
 var crudCmd = &cobra.Command{
-	Use:     "crud -f file.go [-f file.go]... [] output-dir",
+	Use:     "crud -f file.go [-f file.go]... output-dir",
 	Aliases: []string{"c", "cr"},
 	Short:   "Implements DB CRUD interface",
 	Long: `Generates:
@@ -43,7 +43,7 @@ internal
     ├── typeA.go
     └── typeB.go
 `,
-	Args:    cobra.ExactArgs(1),
+	//Args:    cobra.ExactArgs(1),
 	Example: "og gen crud types.go models/",
 	Run: func(cmd *cobra.Command, args []string) {
 		crudTmpl, err := templates.NewCRUD()
@@ -62,7 +62,10 @@ internal
 		var repos []map[string]any
 		var imports []string
 
+		logger.Println("files", viper.GetStringSlice("files"))
+
 		for _, s := range viper.GetStringSlice("files") {
+			logger.Println("file", s)
 			src, err := source.NewFile(s)
 			if err != nil {
 				logger.Fatal(err)
@@ -183,8 +186,8 @@ func init() {
 	// is called directly, e.g.:
 	// crudCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
-	crudCmd.Flags().StringArrayP("file", "f", nil, "files to be parsed; might be provided multiple times; example: -f file.go")
-	_ = viper.BindPFlag("files", crudCmd.Flag("file"))
+	//crudCmd.Flags().StringArrayP("file", "f", nil, "files to be parsed; might be provided multiple times; example: -f file.go")
+	//_ = viper.BindPFlag("files", crudCmd.Flag("file"))
 
 	crudCmd.Flags().BoolP("regen", "r", false, "regenerate existing files")
 	_ = viper.BindPFlag("regen", crudCmd.Flag("regen"))

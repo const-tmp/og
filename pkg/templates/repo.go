@@ -21,8 +21,8 @@ type (
 	}
 )
 
-func New(db *gorm.DB, omit ...string) Repo {
-	return repo{db, NewCRUD(db, omit...)}
+func New(db *gorm.DB) Repo {
+	return repo{db, NewCRUD(db)}
 }
 
 func (r repo) Create(ctx context.Context, v {{ .Type }}, omit ...string) (*{{ .Type }}, error) {

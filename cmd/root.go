@@ -50,6 +50,11 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
+	rootCmd.PersistentFlags().StringArrayP("file", "f", nil, "files to be edited; might be provided multiple times; example: -f file.go")
+	//_ = rootCmd.MarkFlagRequired("file")
+	_ = viper.BindPFlag("files", rootCmd.Flag("file"))
+
 }
 
 // initConfig reads in config file and ENV variables if set.

@@ -55,7 +55,7 @@ to quickly create a Cobra application.`,
 				typeSpec, isType := n.(*ast.TypeSpec)
 				funcDecl, isFunc := n.(*ast.FuncDecl)
 
-				if isType && (viper.GetBool("types") || viper.GetBool("all")) {
+				if isType && typeSpec.Doc == nil && (viper.GetBool("types") || viper.GetBool("all")) {
 					name = typeSpec.Name.Name
 					if typeSpec.Name.IsExported() && (viper.GetBool("exported") || viper.GetBool("all")) {
 						typeSpec.Doc = editor.Comment4Node(n, fmt.Sprintf("// %s exported type TODO: edit", name))
@@ -64,7 +64,7 @@ to quickly create a Cobra application.`,
 						typeSpec.Doc = editor.Comment4Node(n, fmt.Sprintf("// %s unexported type TODO: edit", name))
 					}
 				}
-				if isVar && (viper.GetBool("vars") || viper.GetBool("all")) {
+				if isVar && valueSpec.Doc == nil && (viper.GetBool("vars") || viper.GetBool("all")) {
 					name = valueSpec.Names[0].Name
 					if valueSpec.Names[0].IsExported() && (viper.GetBool("exported") || viper.GetBool("all")) {
 						valueSpec.Doc = editor.Comment4Node(n, fmt.Sprintf("// %s exported var TODO: edit", name))
@@ -73,7 +73,7 @@ to quickly create a Cobra application.`,
 						valueSpec.Doc = editor.Comment4Node(n, fmt.Sprintf("// %s unexported var TODO: edit", name))
 					}
 				}
-				if isFunc && (viper.GetBool("funcs") || viper.GetBool("all")) {
+				if isFunc && funcDecl.Doc == nil && (viper.GetBool("funcs") || viper.GetBool("all")) {
 					name = funcDecl.Name.Name
 					if funcDecl.Name.IsExported() && (viper.GetBool("exported") || viper.GetBool("all")) {
 						funcDecl.Doc = editor.Comment4Node(n, fmt.Sprintf("// %s exported func TODO: edit", name))
@@ -126,9 +126,9 @@ func init() {
 	// is called directly, e.g.:
 	// docsCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
-	docsCmd.Flags().StringArrayP("file", "f", nil, "files to be edited; might be provided multiple times; example: -f file.go")
-	_ = docsCmd.MarkFlagRequired("file")
-	_ = viper.BindPFlag("files", docsCmd.Flag("file"))
+	//docsCmd.Flags().StringArrayP("file", "f", nil, "files to be edited; might be provided multiple times; example: -f file.go")
+	//_ = docsCmd.MarkFlagRequired("file")
+	//_ = viper.BindPFlag("files", docsCmd.Flag("file"))
 
 	docsCmd.Flags().BoolP("types", "t", true, "Add comments to types")
 	//_ = docsCmd.MarkFlagRequired("types")
