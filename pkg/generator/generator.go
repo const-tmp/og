@@ -2,9 +2,13 @@ package generator
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/nullc4t/og/pkg/editor"
 	"github.com/nullc4t/og/pkg/source"
 	"go/format"
+	"go/parser"
+	"go/printer"
+	"go/token"
 	"text/template"
 )
 
@@ -16,23 +20,25 @@ type (
 	FileWriter func(path string, data SourceCode) error
 
 	Unit struct {
-		src        *source.File
-		template   *template.Template
-		dot        Dot
-		editAfter  []editor.CodeEditor
-		dstPath    string
-		fileWriter FileWriter
+		src           *source.File
+		template      *template.Template
+		dot           Dot
+		editCodeAfter []editor.CodeEditor
+		editASTAfter  []editor.ASTEditor
+		dstPath       string
+		fileWriter    FileWriter
 	}
 )
 
-func NewUnit(src *source.File, template *template.Template, dot Dot, editAfter []editor.CodeEditor, dstPath string, fileWriter FileWriter) *Unit {
+func NewUnit(src *source.File, template *template.Template, dot Dot, editAfter []editor.CodeEditor, editASTAfter []editor.ASTEditor, dstPath string, fileWriter FileWriter) *Unit {
 	return &Unit{
-		src:        src,
-		template:   template,
-		dot:        dot,
-		editAfter:  editAfter,
-		dstPath:    dstPath,
-		fileWriter: fileWriter,
+		src:           src,
+		template:      template,
+		dot:           dot,
+		editCodeAfter: editAfter,
+		editASTAfter:  editASTAfter,
+		dstPath:       dstPath,
+		fileWriter:    fileWriter,
 	}
 }
 
@@ -45,22 +51,52 @@ func New(src *source.File, tmpl *template.Template, dot Dot, fw FileWriter, dstP
 		dstPath:    dstPath,
 		fileWriter: fw,
 	}
-	//u.editAfter = append(u.editAfter, u.AddSourcePackageToImports)
-	u.editAfter = append(u.editAfter, editor.AddImportsFactory(src.ImportPath()))
-	u.editAfter = append(u.editAfter, Formatter)
+	//u.editCodeAfter = append(u.editCodeAfter, u.AddSourcePackageToImports)
+	u.editCodeAfter = append(u.editCodeAfter, editor.AddImportsFactory(src.ImportPath()))
+	u.editCodeAfter = append(u.editCodeAfter, Formatter)
 	return u
 }
 
 func (u Unit) Generate() error {
 	tmp := new(bytes.Buffer)
 
+	fmt.Println("executing template for", u.dstPath)
+
 	err := u.template.Execute(tmp, u.dot)
 	if err != nil {
 		return err
 	}
 
-	for _, codeEditor := range u.editAfter {
+	fmt.Println("code editors for", u.dstPath)
+
+	for _, codeEditor := range u.editCodeAfter {
 		tmp, err = codeEditor(tmp)
+		if err != nil {
+			return err
+		}
+	}
+
+	if u.editASTAfter != nil {
+		fmt.Println("parsing AST for", u.dstPath)
+
+		fset := token.NewFileSet()
+		file, err := parser.ParseFile(fset, u.dstPath, tmp, parser.ParseComments)
+		if err != nil {
+			return err
+		}
+
+		fmt.Println("AST editors for", u.dstPath)
+		for _, astEditor := range u.editASTAfter {
+			file, err = astEditor(fset, file)
+			if err != nil {
+				return err
+			}
+		}
+
+		fmt.Println("printing", u.dstPath)
+		//fmt.Println(tmp.String())
+		tmp = new(bytes.Buffer)
+		err = printer.Fprint(tmp, fset, file)
 		if err != nil {
 			return err
 		}

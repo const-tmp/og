@@ -160,7 +160,7 @@ internal
 				}, []editor.CodeEditor{
 					editor.AddImportsFactory(imports...),
 					generator.Formatter,
-				}, genRepoPath,
+				}, nil, genRepoPath,
 				writer.File,
 			)
 			err = genRepoUnit.Generate()

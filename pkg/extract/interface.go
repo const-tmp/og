@@ -6,27 +6,12 @@ import (
 	"go/token"
 )
 
-type Interface struct {
-	Name    string
-	Methods []Method
-}
-
-type Method struct {
-	Name    string
-	Args    []Arg
-	Results []Arg
-}
-
-type Arg struct {
-	Name string
-	Type string
-}
-
 func Interfaces(file *ast.File) []Interface {
 	var ifaces []Interface
 
+	importMap := make(map[Import]struct{})
+
 	for _, decl := range file.Decls {
-		fmt.Println(decl)
 		genDecl, ok := decl.(*ast.GenDecl)
 		if !ok {
 			continue
@@ -52,31 +37,36 @@ func Interfaces(file *ast.File) []Interface {
 					continue
 				}
 
-				m := Method{Name: field.Names[0].Name}
-
-				for _, arg := range funcType.Params.List {
-					argType, ok := arg.Type.(*ast.Ident)
-					if !ok {
-						fmt.Println("interface:", i.Name, "method:", m.Name, arg, "is not type *ast.Ident")
-						continue
-					}
-					a := Arg{Type: argType.Name, Name: arg.Names[0].Name}
-					m.Args = append(m.Args, a)
-				}
-
-				for _, arg := range funcType.Results.List {
-					argType, ok := arg.Type.(*ast.Ident)
-					if !ok {
-						fmt.Println("interface:", i.Name, "method:", m.Name, arg, "is not type *ast.Ident")
-						continue
-					}
-					a := Arg{Type: argType.Name, Name: arg.Names[0].Name}
-					m.Results = append(m.Results, a)
-				}
-				i.Methods = append(i.Methods, m)
+				i.Methods = append(i.Methods, Method{
+					Name:    field.Names[0].Name,
+					Args:    GetArgs(file, funcType.Params),
+					Results: Results{GetArgs(file, funcType.Results)},
+				})
 			}
+
+			for _, method := range i.Methods {
+				for _, arg := range method.Args {
+					fmt.Println(i.Name, "agr :", arg.Type.String())
+					if arg.Type.IsImported() {
+						importMap[Import{arg.Type.Package, arg.Type.ImportPath}] = struct{}{}
+					}
+				}
+				for _, arg := range method.Results.Args {
+					fmt.Println(i.Name, "agr :", arg.Type.String())
+					if arg.Type.IsImported() {
+						importMap[Import{arg.Type.Package, arg.Type.ImportPath}] = struct{}{}
+					}
+				}
+			}
+
+			for imp := range importMap {
+				i.Imports = append(i.Imports, imp)
+				fmt.Println(i.Name, "import map:", imp.Name, imp.Path)
+			}
+
 			ifaces = append(ifaces, i)
 		}
 	}
+
 	return ifaces
 }
