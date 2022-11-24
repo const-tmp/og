@@ -7,5 +7,6 @@ type Simple interface {
 	Get2(int) error
 	Get3(i int) error
 	Get4(int) (err error)
+	Get5([]int) (err error)
 	Method(method extract.Method) error
 }

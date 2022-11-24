@@ -52,8 +52,8 @@ to quickly create a Cobra application.`,
 
 		ifaces := extract.Interfaces(file)
 
-		var sds []ProtocolStruct
 		for _, iface := range ifaces {
+			var sds []ProtocolStruct
 			for _, method := range iface.Methods {
 				requestStruct := ProtocolStruct{StructName: fmt.Sprintf("%sRequest", method.Name)}
 				for _, arg := range method.Args {

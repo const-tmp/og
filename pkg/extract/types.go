@@ -29,6 +29,8 @@ type (
 		Name       string
 		Package    string
 		ImportPath string
+		IsArray    bool
+		IsPointer  bool
 	}
 
 	Import struct {
@@ -67,10 +69,14 @@ func (a Arg) String() string {
 }
 
 func (t Type) String() string {
-	if t.Package == "" {
-		return t.Name
+	var prefix string
+	if t.IsArray {
+		prefix = "[]"
 	}
-	return fmt.Sprintf("%s.%s", t.Package, t.Name)
+	if t.Package == "" {
+		return prefix + t.Name
+	}
+	return fmt.Sprintf("%s.%s", prefix+t.Package, t.Name)
 }
 
 func (t Type) IsImported() bool {
