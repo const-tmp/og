@@ -39,7 +39,9 @@ to quickly create a Cobra application.`,
 		fmt.Println("protocol called")
 		logger.Println("files:", viper.GetStringSlice("files"))
 
-		tmpl := template.Must(template.New("struct").Parse(templates.StructTemplate))
+		tmpl := template.Must(template.New("struct").
+			Funcs(templates.FuncMap).
+			Parse(templates.StructTemplate))
 		tmpl = template.Must(tmpl.New("").Parse(templates.ProtocolTemplate))
 
 		fset := token.NewFileSet()
@@ -70,11 +72,15 @@ to quickly create a Cobra application.`,
 				sds = append(sds, responseStruct)
 			}
 
-			for _, i := range iface.UsedImports {
-				logger.Println(iface.Name, i.Name, i.Path)
+			for _, imp := range iface.UsedImports {
+				//if imp.Path == "context" {
+				//	iface.UsedImports = append(iface.UsedImports[:i], iface.UsedImports[i+1:]...)
+				//	continue
+				//}
+				logger.Println(iface.Name, imp.Name, imp.Path)
 			}
 
-			// name unnamed args
+			// name args
 			for _, sd := range sds {
 				logger.Println("struct:", sd.StructName, sd.Fields)
 				for _, field := range sd.Fields {
@@ -87,6 +93,8 @@ to quickly create a Cobra application.`,
 						default:
 							field.Name = names.GetExportedName(field.Type.Name)
 						}
+					} else {
+						field.Name = names.GetExportedName(field.Name)
 					}
 				}
 			}

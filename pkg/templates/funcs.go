@@ -3,6 +3,8 @@ package templates
 import (
 	"errors"
 	"fmt"
+	"github.com/nullc4t/og/pkg/extract"
+	"github.com/nullc4t/og/pkg/names"
 	"github.com/vetcher/go-astra/types"
 	"strings"
 	"text/template"
@@ -10,15 +12,22 @@ import (
 
 var (
 	FuncMap = template.FuncMap{
-		"argNames":        argNames,
-		"args":            argsSting,
-		"funcArgs":        renderArgs,
-		"join":            strings.Join,
-		"appendFormatter": appendFormatter,
-		"lower1":          lower1,
-		"receiver":        receiver,
-		"dict":            dict,
-		"MapDot":          MapDot,
+		"argNames":                  argNames,
+		"args":                      argsSting,
+		"funcArgs":                  renderArgs,
+		"join":                      strings.Join,
+		"appendFormatter":           appendFormatter,
+		"lower1":                    lower1,
+		"receiver":                  receiver,
+		"dict":                      dict,
+		"MapDot":                    MapDot,
+		"struct_return_args":        ReturnAllStructFields,
+		"struct_return_types":       ReturnAllStructFieldTypes,
+		"struct_constructor_args":   StructConstructorArgs,
+		"struct_constructor_return": StructConstructorReturn,
+		"exported":                  names.GetExportedName,
+		"unexported":                names.GetUnexportedName,
+		"mapslice2slice":            MapSlice2Slice,
 	}
 )
 
@@ -85,4 +94,44 @@ func appendFormatter(ss []string) []string {
 		ss[i] = fmt.Sprintf("%s:\t%%v", s)
 	}
 	return ss
+}
+
+func ReturnAllStructFields(args extract.Args) string {
+	var s []string
+	for _, arg := range args {
+		s = append(s, fmt.Sprintf("r.%s", arg.Name))
+	}
+	return strings.Join(s, ", ")
+}
+
+func ReturnAllStructFieldTypes(args extract.Args) string {
+	var s []string
+	for _, arg := range args {
+		s = append(s, arg.Type.String())
+	}
+	return strings.Join(s, ", ")
+}
+
+func StructConstructorArgs(args extract.Args) string {
+	var s []string
+	for _, arg := range args {
+		s = append(s, fmt.Sprintf("%s %s", names.GetUnexportedName(arg.Name), arg.Type.String()))
+	}
+	return strings.Join(s, ", ")
+}
+
+func StructConstructorReturn(args extract.Args) string {
+	var s []string
+	for _, arg := range args {
+		s = append(s, names.GetUnexportedName(arg.Name))
+	}
+	return strings.Join(s, ", ")
+}
+
+func MapSlice2Slice(sm []map[string]any, key string) []any {
+	var res []any
+	for _, m := range sm {
+		res = append(res, m[key])
+	}
+	return res
 }
