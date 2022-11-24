@@ -6,8 +6,8 @@ import (
 	"log"
 )
 
-func GetArgs(file *ast.File, fields *ast.FieldList) []Arg {
-	var args []Arg
+func GetArgs(file *ast.File, fields *ast.FieldList) Args {
+	var args []*Arg
 
 	for i, arg := range fields.List {
 		var name string
@@ -44,7 +44,7 @@ func GetArgs(file *ast.File, fields *ast.FieldList) []Arg {
 		}
 
 		a.Type = t
-		args = append(args, a)
+		args = append(args, &a)
 	}
 
 	return args

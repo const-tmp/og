@@ -2,7 +2,7 @@ package templates
 
 var (
 	StructTemplate = `
-type {{ .StructName }} struct {
+{{ .StructName }} struct {
 {{- range .Fields }}
 	{{ .Name }} {{ .Type.String }}
 {{- else -}}
@@ -11,8 +11,10 @@ type {{ .StructName }} struct {
 `
 	ProtocolTemplate = `package {{ .Package }}
 
+type (
 {{ range .Structs }}
 {{ template "struct" . }}
 {{ end }}
+)
 `
 )

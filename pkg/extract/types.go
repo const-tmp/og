@@ -7,9 +7,9 @@ import (
 
 type (
 	Interface struct {
-		Name    string
-		Methods []Method
-		Imports []Import
+		Name        string
+		Methods     []Method
+		UsedImports []Import
 	}
 
 	Method struct {
@@ -22,11 +22,10 @@ type (
 		Name string
 		Type Type
 	}
-	Args    []Arg
+	Args    []*Arg
 	Results struct{ Args }
 
 	Type struct {
-		//Imported   bool
 		Name       string
 		Package    string
 		ImportPath string
@@ -81,4 +80,8 @@ func (t Type) IsImported() bool {
 func (i Import) IsAliasedImportRequired() bool {
 	path := strings.Split(i.Path, "/")
 	return path[len(path)-1] != i.Name
+}
+
+func (t Type) GetName() string {
+	return t.Name
 }

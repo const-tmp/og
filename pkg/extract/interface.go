@@ -60,7 +60,7 @@ func Interfaces(file *ast.File) []Interface {
 			}
 
 			for imp := range importMap {
-				i.Imports = append(i.Imports, imp)
+				i.UsedImports = append(i.UsedImports, imp)
 				fmt.Println(i.Name, "import map:", imp.Name, imp.Path)
 			}
 

@@ -20,6 +20,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type ProtocolStruct struct {
+	StructName string
+	Fields     extract.Args
+}
+
 // protocolCmd represents the protocol command
 var protocolCmd = &cobra.Command{
 	Use:   "protocol",
@@ -45,48 +50,65 @@ to quickly create a Cobra application.`,
 
 		ifaces := extract.Interfaces(file)
 
-		type StructDot struct {
-			StructName string
-			Fields     extract.Args
-		}
-
-		var sds []StructDot
+		var sds []ProtocolStruct
 		for _, iface := range ifaces {
 			for _, method := range iface.Methods {
-				//logger.Println(fmt.Sprintf("%sRequest", method.Name))
-
-				sd := StructDot{StructName: fmt.Sprintf("%sRequest", method.Name)}
+				requestStruct := ProtocolStruct{StructName: fmt.Sprintf("%sRequest", method.Name)}
 				for _, arg := range method.Args {
-					if !ArgIsContext(arg) {
-						sd.Fields = append(sd.Fields, arg)
+					if !ArgIsContext(*arg) {
+						requestStruct.Fields = append(requestStruct.Fields, arg)
 					}
-					//logger.Println(arg)
+					logger.Println(iface.Name, method.Name, arg)
 				}
-				sds = append(sds, sd)
+				sds = append(sds, requestStruct)
 
-				//logger.Println(fmt.Sprintf("%sResponse", method.Name))
-
-				sd = StructDot{StructName: fmt.Sprintf("%sResponse", method.Name)}
+				responseStruct := ProtocolStruct{StructName: fmt.Sprintf("%sResponse", method.Name)}
 				for _, arg := range method.Results.Args {
-					sd.Fields = append(sd.Fields, arg)
-					//logger.Println(arg)
+					responseStruct.Fields = append(responseStruct.Fields, arg)
+					logger.Println(iface.Name, method.Name, arg)
 				}
-				sds = append(sds, sd)
-				//logger.Println()
+				sds = append(sds, responseStruct)
 			}
 
-			for _, i := range iface.Imports {
+			for _, i := range iface.UsedImports {
 				logger.Println(iface.Name, i.Name, i.Path)
 			}
 
+			// name unnamed args
+			for _, sd := range sds {
+				logger.Println("struct:", sd.StructName, sd.Fields)
+				for _, field := range sd.Fields {
+					if field.Name == "" {
+						switch field.Type.Name {
+						case "error":
+							field.Name = "Err"
+						case "Context":
+							field.Name = "ctx"
+						default:
+							field.Name = names.GetExportedName(field.Type.Name)
+						}
+					}
+				}
+			}
+			for _, sd := range sds {
+				logger.Println("struct:", sd.StructName)
+				for _, field := range sd.Fields {
+					//if field.Name == "" {
+					//	logger.Println(field.Type)
+					//	//field.Name = field.Type.Name
+					//}
+					logger.Println("\t", field.Name, field.Type)
+				}
+				logger.Println()
+			}
 			unit := generator.NewUnit(nil, tmpl, map[string]any{
 				"Package": file.Name.Name,
 				"Structs": sds,
 			}, []editor.CodeEditor{
-				//editor.AddNamedImportsFactory(iface.Imports...),
+				//editor.AddNamedImportsFactory(iface.UsedImports...),
 			},
 				[]editor.ASTEditor{
-					editor.ASTImportsFactory(iface.Imports...),
+					editor.ASTImportsFactory(iface.UsedImports...),
 				}, filepath.Join(
 					filepath.Dir(args[0]),
 					names.FileNameWithSuffix(iface.Name, "protocol"),
