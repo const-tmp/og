@@ -1,15 +1,12 @@
 package extract
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
 )
 
 func Interfaces(file *ast.File) []Interface {
 	var ifaces []Interface
-
-	importMap := make(map[Import]struct{})
 
 	for _, decl := range file.Decls {
 		genDecl, ok := decl.(*ast.GenDecl)
@@ -31,6 +28,8 @@ func Interfaces(file *ast.File) []Interface {
 
 			i := Interface{Name: typeSpec.Name.Name}
 
+			importMap := make(map[Import]struct{})
+
 			for _, field := range iface.Methods.List {
 				funcType, ok := field.Type.(*ast.FuncType)
 				if !ok {
@@ -46,13 +45,11 @@ func Interfaces(file *ast.File) []Interface {
 
 			for _, method := range i.Methods {
 				for _, arg := range method.Args {
-					fmt.Println(i.Name, "agr :", arg.Type.String())
 					if arg.Type.IsImported() {
 						importMap[Import{arg.Type.Package, arg.Type.ImportPath}] = struct{}{}
 					}
 				}
 				for _, arg := range method.Results.Args {
-					fmt.Println(i.Name, "agr :", arg.Type.String())
 					if arg.Type.IsImported() {
 						importMap[Import{arg.Type.Package, arg.Type.ImportPath}] = struct{}{}
 					}
@@ -61,7 +58,6 @@ func Interfaces(file *ast.File) []Interface {
 
 			for imp := range importMap {
 				i.UsedImports = append(i.UsedImports, imp)
-				fmt.Println(i.Name, "import map:", imp.Name, imp.Path)
 			}
 
 			ifaces = append(ifaces, i)

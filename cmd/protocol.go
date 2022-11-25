@@ -9,6 +9,7 @@ import (
 	"github.com/nullc4t/og/pkg/extract"
 	"github.com/nullc4t/og/pkg/generator"
 	"github.com/nullc4t/og/pkg/names"
+	"github.com/nullc4t/og/pkg/source"
 	"github.com/nullc4t/og/pkg/templates"
 	"github.com/nullc4t/og/pkg/writer"
 	"github.com/spf13/viper"
@@ -39,10 +40,11 @@ to quickly create a Cobra application.`,
 		fmt.Println("protocol called")
 		logger.Println("files:", viper.GetStringSlice("files"))
 
-		tmpl := template.Must(template.New("struct").
-			Funcs(templates.FuncMap).
-			Parse(templates.StructTemplate))
-		tmpl = template.Must(tmpl.New("").Parse(templates.ProtocolTemplate))
+		//tmpl := template.Must(template.New("struct").
+		//	Funcs(templates.FuncMap).
+		//	Parse(templates.StructTemplate))
+		tmpl := template.Must(template.New("").Funcs(templates.FuncMap).Parse(templates.TransportExchanges))
+		endpointTmpl := template.Must(tmpl.New("").Funcs(templates.FuncMap).Parse(templates.Endpoints))
 
 		fset := token.NewFileSet()
 		file, err := parser.ParseFile(fset, args[0], nil, parser.ParseComments)
@@ -60,10 +62,9 @@ to quickly create a Cobra application.`,
 				// for request
 				requestStruct := ProtocolStruct{StructName: fmt.Sprintf("%sRequest", method.Name)}
 				for _, arg := range method.Args {
-					if !ArgIsContext(*arg) {
-						requestStruct.Fields = append(requestStruct.Fields, arg)
-					}
-					logger.Println(iface.Name, method.Name, arg)
+					//if !ArgIsContext(*arg) {
+					requestStruct.Fields = append(requestStruct.Fields, arg)
+					//}
 				}
 				sds = append(sds, requestStruct)
 
@@ -80,18 +81,16 @@ to quickly create a Cobra application.`,
 			for _, imp := range iface.UsedImports {
 				logger.Println(iface.Name, imp.Name, imp.Path)
 			}
-			fmt.Println()
 
 			// name/rename args
 			for _, sd := range sds {
-				logger.Println("struct:", sd.StructName, sd.Fields)
 				for _, field := range sd.Fields {
 					if field.Name == "" {
 						switch field.Type.Name {
 						case "error":
 							field.Name = "Err"
 						case "Context":
-							field.Name = "ctx"
+							field.Name = "Ctx"
 						default:
 							field.Name = names.GetExportedName(field.Type.Name)
 						}
@@ -101,7 +100,30 @@ to quickly create a Cobra application.`,
 				}
 			}
 
-			// generate file
+			sf, err := source.NewFile(args[0])
+			if err != nil {
+				logger.Fatal(err)
+			}
+
+			// generate endpoints
+			endpointUnit := generator.NewUnit(nil, endpointTmpl, map[string]any{
+				//"Package": file.Name.Name,
+				"Package":        "transport",
+				"Interface":      iface,
+				"ServicePackage": sf.Package,
+			}, nil,
+				[]editor.ASTEditor{
+					editor.ASTImportsFactory(extract.Import{Path: sf.ImportPath()}),
+				}, filepath.Join(
+					filepath.Dir(args[0]), "transport",
+					names.FileNameWithSuffix(iface.Name, "endpoints"),
+				), writer.File)
+			err = endpointUnit.Generate()
+			if err != nil {
+				logger.Fatal("generate protocol error:", err)
+			}
+
+			// generate exchanges
 			unit := generator.NewUnit(nil, tmpl, map[string]any{
 				//"Package": file.Name.Name,
 				"Package": "transport",

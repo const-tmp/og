@@ -94,7 +94,6 @@ func (u Unit) Generate() error {
 		}
 
 		fmt.Println("printing", u.dstPath)
-		//fmt.Println(tmp.String())
 		tmp = new(bytes.Buffer)
 		err = printer.Fprint(tmp, fset, file)
 		if err != nil {
