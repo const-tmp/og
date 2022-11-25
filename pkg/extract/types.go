@@ -73,6 +73,9 @@ func (t Type) String() string {
 	if t.IsArray {
 		prefix = "[]"
 	}
+	if t.IsPointer {
+		prefix += "*"
+	}
 	if t.Package == "" {
 		return prefix + t.Name
 	}

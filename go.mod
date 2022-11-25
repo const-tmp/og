@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.14.0
+	github.com/go-kit/kit v0.12.0
 	github.com/stretchr/testify v1.8.1
 	github.com/vetcher/go-astra v1.2.0
 	golang.org/x/tools v0.1.12

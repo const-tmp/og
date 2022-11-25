@@ -41,27 +41,9 @@ func GetTypeFromASTExpr(file *ast.File, field ast.Expr) Type {
 	case *ast.SelectorExpr:
 		t = NewTypeFromASTSelectorExpr(file, v)
 	case *ast.ArrayType:
-		switch vv := v.Elt.(type) {
-		case *ast.Ident:
-			t = NewTypeFromIdent(vv)
-			t.IsArray = true
-		case *ast.SelectorExpr:
-			t = NewTypeFromASTSelectorExpr(file, vv)
-			t.IsArray = true
-		default:
-			log.Fatal("[ BUG ] unknown ast.ArrayType.Elt", vv)
-		}
+		t = NewTypeFromArrayType(file, v)
 	case *ast.StarExpr:
-		switch vv := v.X.(type) {
-		case *ast.Ident:
-			t = NewTypeFromIdent(vv)
-			t.IsPointer = true
-		case *ast.SelectorExpr:
-			t = NewTypeFromASTSelectorExpr(file, vv)
-			t.IsPointer = true
-		default:
-			log.Fatalf("[ BUG ] unknown ast.StarExpr.X: %T", vv)
-		}
+		t = NewTypeFromStarExpr(file, v)
 	default:
 		log.Fatalf("[ BUG ] unknown ast.Expr: %T", v)
 	}
@@ -82,6 +64,37 @@ func NewTypeFromASTSelectorExpr(file *ast.File, se *ast.SelectorExpr) Type {
 		log.Fatal("[ BUG ] unknown ast.SelectorExpr.X", pIdent)
 	}
 
-	//return Type{Name: se.Sel.Name, Package: p}
 	return Type{Name: se.Sel.Name, Package: p, ImportPath: ImportByPackage(file, p)}
+}
+
+func NewTypeFromStarExpr(file *ast.File, se *ast.StarExpr) Type {
+	var t Type
+	switch x := se.X.(type) {
+	case *ast.Ident:
+		t = NewTypeFromIdent(x)
+	case *ast.SelectorExpr:
+		t = NewTypeFromASTSelectorExpr(file, x)
+	case *ast.ArrayType:
+		t = NewTypeFromArrayType(file, x)
+	default:
+		log.Fatalf("[ BUG ] unknown ast.StarExpr.X: %T", x)
+	}
+	t.IsPointer = true
+	return t
+}
+
+func NewTypeFromArrayType(file *ast.File, at *ast.ArrayType) Type {
+	var t Type
+	switch elt := at.Elt.(type) {
+	case *ast.Ident:
+		t = NewTypeFromIdent(elt)
+	case *ast.SelectorExpr:
+		t = NewTypeFromASTSelectorExpr(file, elt)
+	case *ast.StarExpr:
+		t = NewTypeFromStarExpr(file, elt)
+	default:
+		log.Fatalf("[ BUG ] unknown ast.ArrayType.Elt: %T", elt)
+	}
+	t.IsArray = true
+	return t
 }

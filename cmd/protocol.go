@@ -52,9 +52,12 @@ to quickly create a Cobra application.`,
 
 		ifaces := extract.Interfaces(file)
 
+		// for each interface
 		for _, iface := range ifaces {
+			// we create structs
 			var sds []ProtocolStruct
 			for _, method := range iface.Methods {
+				// for request
 				requestStruct := ProtocolStruct{StructName: fmt.Sprintf("%sRequest", method.Name)}
 				for _, arg := range method.Args {
 					if !ArgIsContext(*arg) {
@@ -64,6 +67,7 @@ to quickly create a Cobra application.`,
 				}
 				sds = append(sds, requestStruct)
 
+				// for response
 				responseStruct := ProtocolStruct{StructName: fmt.Sprintf("%sResponse", method.Name)}
 				for _, arg := range method.Results.Args {
 					responseStruct.Fields = append(responseStruct.Fields, arg)
@@ -72,15 +76,13 @@ to quickly create a Cobra application.`,
 				sds = append(sds, responseStruct)
 			}
 
+			logger.Println(iface.Name, "used imports:")
 			for _, imp := range iface.UsedImports {
-				//if imp.Path == "context" {
-				//	iface.UsedImports = append(iface.UsedImports[:i], iface.UsedImports[i+1:]...)
-				//	continue
-				//}
 				logger.Println(iface.Name, imp.Name, imp.Path)
 			}
+			fmt.Println()
 
-			// name args
+			// name/rename args
 			for _, sd := range sds {
 				logger.Println("struct:", sd.StructName, sd.Fields)
 				for _, field := range sd.Fields {
@@ -98,19 +100,11 @@ to quickly create a Cobra application.`,
 					}
 				}
 			}
-			for _, sd := range sds {
-				logger.Println("struct:", sd.StructName)
-				for _, field := range sd.Fields {
-					//if field.Name == "" {
-					//	logger.Println(field.Type)
-					//	//field.Name = field.Type.Name
-					//}
-					logger.Println("\t", field.Name, field.Type)
-				}
-				logger.Println()
-			}
+
+			// generate file
 			unit := generator.NewUnit(nil, tmpl, map[string]any{
-				"Package": file.Name.Name,
+				//"Package": file.Name.Name,
+				"Package": "transport",
 				"Structs": sds,
 			}, []editor.CodeEditor{
 				//editor.AddNamedImportsFactory(iface.UsedImports...),
@@ -118,8 +112,8 @@ to quickly create a Cobra application.`,
 				[]editor.ASTEditor{
 					editor.ASTImportsFactory(iface.UsedImports...),
 				}, filepath.Join(
-					filepath.Dir(args[0]),
-					names.FileNameWithSuffix(iface.Name, "protocol"),
+					filepath.Dir(args[0]), "transport",
+					names.FileNameWithSuffix(iface.Name, "exchanges"),
 				), writer.File)
 			err = unit.Generate()
 			if err != nil {
