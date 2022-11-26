@@ -41,9 +41,6 @@ to quickly create a Cobra application.`,
 		fmt.Println("protocol called")
 		logger.Println("files:", viper.GetStringSlice("files"))
 
-		//tmpl := template.Must(template.New("struct").
-		//	Funcs(templates.FuncMap).
-		//	Parse(templates.StructTemplate))
 		tmpl := template.Must(template.New("").Funcs(templates.FuncMap).Parse(templates.TransportExchanges))
 		endpointTmpl := template.Must(tmpl.New("").Funcs(templates.FuncMap).Parse(templates.Endpoints))
 		endpointSetTmpl := template.Must(tmpl.New("").Funcs(templates.FuncMap).Parse(templates.EndpointSet))
@@ -111,14 +108,14 @@ to quickly create a Cobra application.`,
 
 			// generate endpoints
 			endpointSetUnit := generator.NewUnit(nil, endpointSetTmpl, map[string]any{
-				"Package":        "transport",
+				"Package":        "endpoints",
 				"Interface":      iface,
 				"ServicePackage": sf.Package,
 			}, nil,
 				[]editor.ASTEditor{
 					editor.ASTImportsFactory(extract.Import{Path: sf.ImportPath()}),
 				}, filepath.Join(
-					filepath.Dir(args[0]), "transport",
+					filepath.Dir(args[0]), "endpoints",
 					names.FileNameWithSuffix(iface.Name, "endpoints"),
 				), writer.File)
 			err = endpointSetUnit.Generate()
@@ -128,14 +125,14 @@ to quickly create a Cobra application.`,
 
 			// generate server endpoints
 			endpointUnit := generator.NewUnit(nil, endpointTmpl, map[string]any{
-				"Package":        "transport",
+				"Package":        "endpoints",
 				"Interface":      iface,
 				"ServicePackage": sf.Package,
 			}, nil,
 				[]editor.ASTEditor{
 					editor.ASTImportsFactory(extract.Import{Path: sf.ImportPath()}),
 				}, filepath.Join(
-					filepath.Dir(args[0]), "transport",
+					filepath.Dir(args[0]), "endpoints",
 					names.FileNameWithSuffix(iface.Name, "server"),
 				), writer.File)
 			err = endpointUnit.Generate()
@@ -146,7 +143,7 @@ to quickly create a Cobra application.`,
 			// generate exchanges
 			unit := generator.NewUnit(nil, tmpl, map[string]any{
 				//"Package": file.Name.Name,
-				"Package": "transport",
+				"Package": "endpoints",
 				"Structs": sds,
 			}, []editor.CodeEditor{
 				//editor.AddNamedImportsFactory(iface.UsedImports...),
@@ -154,7 +151,7 @@ to quickly create a Cobra application.`,
 				[]editor.ASTEditor{
 					editor.ASTImportsFactory(iface.UsedImports...),
 				}, filepath.Join(
-					filepath.Dir(args[0]), "transport",
+					filepath.Dir(args[0]), "endpoints",
 					names.FileNameWithSuffix(iface.Name, "exchanges"),
 				), writer.File)
 			err = unit.Generate()
