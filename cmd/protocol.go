@@ -45,6 +45,7 @@ to quickly create a Cobra application.`,
 		//	Parse(templates.StructTemplate))
 		tmpl := template.Must(template.New("").Funcs(templates.FuncMap).Parse(templates.TransportExchanges))
 		endpointTmpl := template.Must(tmpl.New("").Funcs(templates.FuncMap).Parse(templates.Endpoints))
+		endpointSetTmpl := template.Must(tmpl.New("").Funcs(templates.FuncMap).Parse(templates.EndpointSet))
 
 		fset := token.NewFileSet()
 		file, err := parser.ParseFile(fset, args[0], nil, parser.ParseComments)
@@ -106,8 +107,7 @@ to quickly create a Cobra application.`,
 			}
 
 			// generate endpoints
-			endpointUnit := generator.NewUnit(nil, endpointTmpl, map[string]any{
-				//"Package": file.Name.Name,
+			endpointSetUnit := generator.NewUnit(nil, endpointSetTmpl, map[string]any{
 				"Package":        "transport",
 				"Interface":      iface,
 				"ServicePackage": sf.Package,
@@ -117,6 +117,23 @@ to quickly create a Cobra application.`,
 				}, filepath.Join(
 					filepath.Dir(args[0]), "transport",
 					names.FileNameWithSuffix(iface.Name, "endpoints"),
+				), writer.File)
+			err = endpointSetUnit.Generate()
+			if err != nil {
+				logger.Fatal("generate protocol error:", err)
+			}
+
+			// generate server endpoints
+			endpointUnit := generator.NewUnit(nil, endpointTmpl, map[string]any{
+				"Package":        "transport",
+				"Interface":      iface,
+				"ServicePackage": sf.Package,
+			}, nil,
+				[]editor.ASTEditor{
+					editor.ASTImportsFactory(extract.Import{Path: sf.ImportPath()}),
+				}, filepath.Join(
+					filepath.Dir(args[0]), "transport",
+					names.FileNameWithSuffix(iface.Name, "server"),
 				), writer.File)
 			err = endpointUnit.Generate()
 			if err != nil {

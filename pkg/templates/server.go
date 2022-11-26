@@ -13,7 +13,7 @@ import (
 {{ $sp:= .ServicePackage }}
 
 {{ range .Interface.Methods }}
-func {{ .Name }}Endpoint(svc {{ $sp }}.{{ $in }}) endpoint.Endpoint {
+func New{{ .Name }}Endpoint(svc {{ $sp }}.{{ $in }}) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		return New{{ .Name }}Response(svc.{{ .Name }}(request.(*{{ .Name }}Request).Args())), nil
 	}
