@@ -49,3 +49,38 @@ func TestAbbr(t *testing.T) {
 		require.Equal(t, tc.expected, getRawAbbr(tc.name))
 	}
 }
+
+func TestSplitCamelCase(t *testing.T) {
+	var testCases = []struct {
+		name     string
+		expected []string
+	}{
+		{"testACLName", []string{"test", "ACL", "Name"}},
+		{"TestACLName", []string{"Test", "ACL", "Name"}},
+		{"testName", []string{"test", "Name"}},
+		{"t", []string{"t"}},
+		{"", []string{""}},
+	}
+	for _, tc := range testCases {
+		require.Equal(t, tc.expected, SplitCamelCase(tc.name))
+	}
+}
+
+func TestCamel2Snake(t *testing.T) {
+	var testCases = []struct {
+		name     string
+		expected string
+	}{
+		{"testACLName", "test_acl_name"},
+		{"TestACLName", "test_acl_name"},
+		{"testName", "test_name"},
+		{"t", "t"},
+		{"", ""},
+		{"GetUserID", "get_user_id"},
+		{"ASAP", "asap"},
+		{"P2P", "p2p"},
+	}
+	for _, tc := range testCases {
+		require.Equal(t, tc.expected, Camel2Snake(tc.name))
+	}
+}

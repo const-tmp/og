@@ -21,9 +21,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type ProtocolStruct struct {
+type ExchangeStruct struct {
 	StructName string
 	Fields     extract.Args
+	HasContext bool
 }
 
 // protocolCmd represents the protocol command
@@ -58,19 +59,21 @@ to quickly create a Cobra application.`,
 		// for each interface
 		for _, iface := range ifaces {
 			// we create structs
-			var sds []ProtocolStruct
+			var sds []ExchangeStruct
 			for _, method := range iface.Methods {
 				// for request
-				requestStruct := ProtocolStruct{StructName: fmt.Sprintf("%sRequest", method.Name)}
+				requestStruct := ExchangeStruct{StructName: fmt.Sprintf("%sRequest", method.Name)}
 				for _, arg := range method.Args {
-					//if !ArgIsContext(*arg) {
-					requestStruct.Fields = append(requestStruct.Fields, arg)
-					//}
+					if !ArgIsContext(*arg) {
+						requestStruct.Fields = append(requestStruct.Fields, arg)
+					} else {
+						requestStruct.HasContext = true
+					}
 				}
 				sds = append(sds, requestStruct)
 
 				// for response
-				responseStruct := ProtocolStruct{StructName: fmt.Sprintf("%sResponse", method.Name)}
+				responseStruct := ExchangeStruct{StructName: fmt.Sprintf("%sResponse", method.Name)}
 				for _, arg := range method.Results.Args {
 					responseStruct.Fields = append(responseStruct.Fields, arg)
 					logger.Println(iface.Name, method.Name, arg)
