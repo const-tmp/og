@@ -27,6 +27,7 @@ func TestName(t *testing.T) {
 		t.Log(path, d, err)
 		return nil
 	})
+	require.NoError(t, err)
 	files, err := filepath.Glob("go.mod")
 	require.NoError(t, err)
 	for i, file := range files {
@@ -116,6 +117,7 @@ func TestComments(t *testing.T) {
 	node.Comments = comments
 	// write new ast to file
 	f, err := os.Create("new.go")
+	require.NoError(t, err)
 	defer f.Close()
 	if err := printer.Fprint(f, fset, node); err != nil {
 		log.Fatal(err)

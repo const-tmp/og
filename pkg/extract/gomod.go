@@ -8,7 +8,7 @@ import (
 	"regexp"
 )
 
-var dependencyRegex = regexp.MustCompile("\\s*(?P<module>.+)\\s+(?P<version>v\\S+)")
+var dependencyRegex = regexp.MustCompile(`\s*(?P<module>.+)\s+(?P<version>v\S+)`)
 
 func DependenciesFromGoMod(data string) ([]types.Dependency, error) {
 	var res []types.Dependency

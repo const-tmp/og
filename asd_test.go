@@ -22,9 +22,9 @@ func TestName34(t *testing.T) {
 		t.Log("read", string(read))
 		b.Write([]byte(fmt.Sprint(i)))
 	}
-	t.Log(string(b.Bytes()))
+	t.Log(b.String())
 	b.Write([]byte("sdfdsf"))
-	t.Log(string(b.Bytes()))
+	t.Log(b.String())
 
 }
 

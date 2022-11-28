@@ -25,9 +25,8 @@ func Interface2ExchangeStructs(iface types.Interface) []types.ExchangeStruct {
 
 		// for response
 		responseStruct := types.ExchangeStruct{StructName: fmt.Sprintf("%sResponse", method.Name)}
-		for _, arg := range method.Results.Args {
-			responseStruct.Fields = append(responseStruct.Fields, arg)
-		}
+		responseStruct.Fields = append(responseStruct.Fields, method.Results.Args...)
+
 		es = append(es, responseStruct)
 	}
 

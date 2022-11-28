@@ -26,7 +26,7 @@ func TestToSnakeCase(t *testing.T) {
 		{"T", "t"},
 		{"", ""},
 	}
-	regex := regexp.MustCompile("(?:\\b|[a-z]|\\d)[A-Z]")
+	regex := regexp.MustCompile(`(?:\b|[a-z]|\d)[A-Z]`)
 	for _, tc := range testCases {
 		t.Log("test case:", tc.name)
 		t.Log("FindStringSubmatchIndex", regex.FindAllStringIndex(tc.name, -1))
