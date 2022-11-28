@@ -13,7 +13,7 @@ type Service interface {
 	Concat(ctx context.Context, a, b string) (string, error)
 }
 
-// New returns a basic Service with all of the expected middlewares wired in.
+// New returns a basic Service with all the expected middlewares wired in.
 func New(logger log.Logger, ints, chars metrics.Counter) Service {
 	var svc Service
 	{

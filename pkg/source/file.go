@@ -2,7 +2,7 @@ package source
 
 import (
 	"fmt"
-	"github.com/nullc4t/og/pkg/inspector"
+	"github.com/nullc4t/og/pkg/extract"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -28,7 +28,7 @@ func NewFile(path string) (*File, error) {
 		return nil, fmt.Errorf("file abs path error: %w", err)
 	}
 
-	goMod, err := inspector.SearchFileUp("go.mod", filepath.Dir(absPath), SearchUpDirLimit)
+	goMod, err := extract.SearchFileUp("go.mod", filepath.Dir(absPath), SearchUpDirLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func NewFile(path string) (*File, error) {
 		return nil, fmt.Errorf("file abs path error: %w", err)
 	}
 
-	module, err := inspector.GetModuleNameFromGoMod(goMod)
+	module, err := extract.ModuleNameFromGoMod(goMod)
 	if err != nil {
 		return nil, err
 	}

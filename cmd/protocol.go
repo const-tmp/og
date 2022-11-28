@@ -5,12 +5,14 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/nullc4t/og/internal/types"
 	"github.com/nullc4t/og/pkg/editor"
 	"github.com/nullc4t/og/pkg/extract"
 	"github.com/nullc4t/og/pkg/generator"
 	"github.com/nullc4t/og/pkg/names"
 	"github.com/nullc4t/og/pkg/source"
 	"github.com/nullc4t/og/pkg/templates"
+	"github.com/nullc4t/og/pkg/transform"
 	"github.com/nullc4t/og/pkg/writer"
 	"github.com/spf13/viper"
 	"go/parser"
@@ -20,12 +22,6 @@ import (
 
 	"github.com/spf13/cobra"
 )
-
-type ExchangeStruct struct {
-	StructName string
-	Fields     extract.Args
-	HasContext bool
-}
 
 // protocolCmd represents the protocol command
 var protocolCmd = &cobra.Command{
@@ -51,32 +47,11 @@ to quickly create a Cobra application.`,
 			logger.Fatal(err)
 		}
 
-		ifaces := extract.Interfaces(file)
+		ifaces := extract.InterfacesFromASTFile(file)
 
 		// for each interface
 		for _, iface := range ifaces {
-			// we create structs
-			var sds []ExchangeStruct
-			for _, method := range iface.Methods {
-				// for request
-				requestStruct := ExchangeStruct{StructName: fmt.Sprintf("%sRequest", method.Name)}
-				for _, arg := range method.Args {
-					if !ArgIsContext(*arg) {
-						requestStruct.Fields = append(requestStruct.Fields, arg)
-					} else {
-						requestStruct.HasContext = true
-					}
-				}
-				sds = append(sds, requestStruct)
-
-				// for response
-				responseStruct := ExchangeStruct{StructName: fmt.Sprintf("%sResponse", method.Name)}
-				for _, arg := range method.Results.Args {
-					responseStruct.Fields = append(responseStruct.Fields, arg)
-					logger.Println(iface.Name, method.Name, arg)
-				}
-				sds = append(sds, responseStruct)
-			}
+			exchangeStructs := transform.Interface2ExchangeStructs(iface)
 
 			logger.Println(iface.Name, "used imports:")
 			for _, imp := range iface.UsedImports {
@@ -84,21 +59,8 @@ to quickly create a Cobra application.`,
 			}
 
 			// name/rename args
-			for _, sd := range sds {
-				for _, field := range sd.Fields {
-					if field.Name == "" {
-						switch field.Type.Name {
-						case "error":
-							field.Name = "Err"
-						case "Context":
-							field.Name = "Ctx"
-						default:
-							field.Name = names.GetExportedName(field.Type.Name)
-						}
-					} else {
-						field.Name = names.GetExportedName(field.Name)
-					}
-				}
+			for _, exchangeStruct := range exchangeStructs {
+				exchangeStruct = transform.RenameExchangeStruct(exchangeStruct)
 			}
 
 			sf, err := source.NewFile(args[0])
@@ -108,12 +70,12 @@ to quickly create a Cobra application.`,
 
 			// generate endpoints
 			endpointSetUnit := generator.NewUnit(nil, endpointSetTmpl, map[string]any{
-				"Package":        "endpoints",
+				"Pkg":            "endpoints",
 				"Interface":      iface,
 				"ServicePackage": sf.Package,
 			}, nil,
 				[]editor.ASTEditor{
-					editor.ASTImportsFactory(extract.Import{Path: sf.ImportPath()}),
+					editor.ASTImportsFactory(types.Import{Path: sf.ImportPath()}),
 				}, filepath.Join(
 					filepath.Dir(args[0]), "endpoints",
 					names.FileNameWithSuffix(iface.Name, "endpoints"),
@@ -125,12 +87,12 @@ to quickly create a Cobra application.`,
 
 			// generate server endpoints
 			endpointUnit := generator.NewUnit(nil, endpointTmpl, map[string]any{
-				"Package":        "endpoints",
+				"Pkg":            "endpoints",
 				"Interface":      iface,
 				"ServicePackage": sf.Package,
 			}, nil,
 				[]editor.ASTEditor{
-					editor.ASTImportsFactory(extract.Import{Path: sf.ImportPath()}),
+					editor.ASTImportsFactory(types.Import{Path: sf.ImportPath()}),
 				}, filepath.Join(
 					filepath.Dir(args[0]), "endpoints",
 					names.FileNameWithSuffix(iface.Name, "server"),
@@ -142,9 +104,9 @@ to quickly create a Cobra application.`,
 
 			// generate exchanges
 			unit := generator.NewUnit(nil, tmpl, map[string]any{
-				//"Package": file.Name.Name,
-				"Package": "endpoints",
-				"Structs": sds,
+				//"Pkg": file.Name.Name,
+				"Pkg":     "endpoints",
+				"Structs": exchangeStructs,
 			}, []editor.CodeEditor{
 				//editor.AddNamedImportsFactory(iface.UsedImports...),
 			},
@@ -160,14 +122,6 @@ to quickly create a Cobra application.`,
 			}
 		}
 	},
-}
-
-func ArgIsContext(arg extract.Arg) bool {
-	return arg.Type.String() == "context.Context"
-}
-
-func ArgIsError(arg extract.Arg) bool {
-	return arg.Type.String() == "error"
 }
 
 func init() {

@@ -3,7 +3,7 @@ package editor
 import (
 	"bytes"
 	"fmt"
-	"github.com/nullc4t/og/pkg/extract"
+	"github.com/nullc4t/og/internal/types"
 	"go/ast"
 	"go/parser"
 	"go/printer"
@@ -41,7 +41,7 @@ func AddImportsFactory(imports ...string) CodeEditor {
 	}
 }
 
-func AddNamedImportsFactory(imports ...extract.Import) CodeEditor {
+func AddNamedImportsFactory(imports ...types.Import) CodeEditor {
 	return func(code *bytes.Buffer) (*bytes.Buffer, error) {
 		fset := token.NewFileSet()
 
@@ -78,7 +78,7 @@ func AddNamedImportsFactory(imports ...extract.Import) CodeEditor {
 	}
 }
 
-func ASTImportsFactory(imports ...extract.Import) ASTEditor {
+func ASTImportsFactory(imports ...types.Import) ASTEditor {
 	return func(fset *token.FileSet, file *ast.File) (*ast.File, error) {
 		for _, imp := range imports {
 			if imp.IsAliasedImportRequired() {

@@ -67,12 +67,14 @@ func (u Unit) Generate() error {
 		return err
 	}
 
-	fmt.Println("code editors for", u.dstPath)
+	if u.editCodeAfter != nil {
+		fmt.Println("code editors for", u.dstPath)
 
-	for _, codeEditor := range u.editCodeAfter {
-		tmp, err = codeEditor(tmp)
-		if err != nil {
-			return err
+		for _, codeEditor := range u.editCodeAfter {
+			tmp, err = codeEditor(tmp)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -101,12 +103,13 @@ func (u Unit) Generate() error {
 		}
 	}
 
-	formatted, err := format.Source(tmp.Bytes())
-	if err != nil {
-		return err
-	}
+	//formatted, err := format.Source(tmp.Bytes())
+	//if err != nil {
+	//	return err
+	//}
 
-	return u.fileWriter(u.dstPath, bytes.NewBuffer(formatted))
+	//return u.fileWriter(u.dstPath, bytes.NewBuffer(formatted))
+	return u.fileWriter(u.dstPath, tmp)
 }
 
 func Formatter(code SourceCode) (SourceCode, error) {

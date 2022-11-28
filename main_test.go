@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/nullc4t/og/pkg/inspector"
+	"github.com/nullc4t/og/pkg/extract"
 	"github.com/stretchr/testify/require"
 	"go/ast"
 	"go/parser"
@@ -48,15 +48,15 @@ func TestPath(t *testing.T) {
 	t.Log(wd)
 	t.Log(filepath.Join(wd, ".."))
 
-	path, err := inspector.SearchFileUp("go.mod", wd, 3)
+	path, err := extract.SearchFileUp("go.mod", wd, 3)
 	require.NoError(t, err)
 	t.Log(path)
 
-	path, err = inspector.SearchFileDown("go.mod")
+	path, err = extract.SearchFileDown("go.mod")
 	require.NoError(t, err)
 	t.Log(path)
 
-	mod, err := inspector.GetModuleNameFromGoMod(path)
+	mod, err := extract.ModuleNameFromGoMod(path)
 	require.NoError(t, err)
 	t.Log(mod)
 }

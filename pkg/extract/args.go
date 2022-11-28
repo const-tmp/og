@@ -1,30 +1,32 @@
 package extract
 
 import (
+	"fmt"
+	"github.com/nullc4t/og/internal/types"
 	"go/ast"
 	"log"
 )
 
-func GetArgs(file *ast.File, fields *ast.FieldList) Args {
-	var args []*Arg
+func ArgsFromFields(file *ast.File, fields *ast.FieldList) types.Args {
+	var args []*types.Arg
 
 	for _, arg := range fields.List {
 		var (
 			names []string
-			t     Type
+			t     types.Type
 		)
 
 		for _, name := range arg.Names {
 			names = append(names, name.Name)
 		}
 
-		t = GetTypeFromASTExpr(file, arg.Type)
+		t = TypeFromExpr(file, arg.Type)
 
 		if len(arg.Names) == 0 {
-			args = append(args, &Arg{Type: t})
+			args = append(args, &types.Arg{Type: t})
 		} else {
 			for _, name := range names {
-				args = append(args, &Arg{Name: name, Type: t})
+				args = append(args, &types.Arg{Name: name, Type: t})
 			}
 		}
 	}
@@ -32,31 +34,38 @@ func GetArgs(file *ast.File, fields *ast.FieldList) Args {
 	return args
 }
 
-func GetTypeFromASTExpr(file *ast.File, field ast.Expr) Type {
-	var t Type
+func TypeFromExpr(file *ast.File, field ast.Expr) types.Type {
+	var t types.Type
 
 	switch v := field.(type) {
 	case *ast.Ident:
-		t = NewTypeFromIdent(v)
+		t = TypeFromIdent(v)
 	case *ast.SelectorExpr:
-		t = NewTypeFromASTSelectorExpr(file, v)
+		t = TypeFromSelectorExpr(file, v)
 	case *ast.ArrayType:
-		t = NewTypeFromArrayType(file, v)
+		t = TypeFromArrayType(file, v)
 	case *ast.StarExpr:
-		t = NewTypeFromStarExpr(file, v)
+		t = TypeFromStarExpr(file, v)
+	case *ast.Ellipsis:
+		t = TypeFromEllipsis(file, v)
+	case *ast.MapType:
+		t = TypeFromMapType(file, v)
+	case *ast.IndexExpr:
+		fmt.Println("ast.IndexExpr type is not implemented")
 	default:
-		log.Fatalf("[ BUG ] unknown ast.Expr: %T", v)
+		log.Fatalf("[ BUG ] unknown ast.Expr: %T file: %s", v, file.Name.Name)
 	}
 
 	return t
 }
 
-func NewTypeFromIdent(id *ast.Ident) Type {
-	return Type{Name: id.Name}
+func TypeFromIdent(id *ast.Ident) types.Type {
+	return types.NewType(id.Name, "", "")
 }
 
-func NewTypeFromASTSelectorExpr(file *ast.File, se *ast.SelectorExpr) Type {
+func TypeFromSelectorExpr(file *ast.File, se *ast.SelectorExpr) types.Type {
 	var p string
+
 	switch pIdent := se.X.(type) {
 	case *ast.Ident:
 		p = pIdent.Name
@@ -64,37 +73,62 @@ func NewTypeFromASTSelectorExpr(file *ast.File, se *ast.SelectorExpr) Type {
 		log.Fatal("[ BUG ] unknown ast.SelectorExpr.X", pIdent)
 	}
 
-	return Type{Name: se.Sel.Name, Package: p, ImportPath: ImportByPackage(file, p)}
+	return types.NewType(se.Sel.Name, p, ImportString(file, p))
 }
 
-func NewTypeFromStarExpr(file *ast.File, se *ast.StarExpr) Type {
-	var t Type
+func TypeFromStarExpr(file *ast.File, se *ast.StarExpr) types.Type {
+	var t types.Type
+
 	switch x := se.X.(type) {
 	case *ast.Ident:
-		t = NewTypeFromIdent(x)
+		t = TypeFromIdent(x)
 	case *ast.SelectorExpr:
-		t = NewTypeFromASTSelectorExpr(file, x)
+		t = TypeFromSelectorExpr(file, x)
 	case *ast.ArrayType:
-		t = NewTypeFromArrayType(file, x)
+		t = TypeFromArrayType(file, x)
 	default:
-		log.Fatalf("[ BUG ] unknown ast.StarExpr.X: %T", x)
+		log.Fatalf("[ TODO ] unknown ast.StarExpr.X: %T", x)
 	}
-	t.IsPointer = true
-	return t
+
+	return types.Pointer{Type: t}
 }
 
-func NewTypeFromArrayType(file *ast.File, at *ast.ArrayType) Type {
-	var t Type
+func TypeFromEllipsis(file *ast.File, el *ast.Ellipsis) types.Type {
+	var t types.Type
+
+	switch x := el.Elt.(type) {
+	case *ast.Ident:
+		t = TypeFromIdent(x)
+	case *ast.SelectorExpr:
+		t = TypeFromSelectorExpr(file, x)
+	case *ast.ArrayType:
+		t = TypeFromArrayType(file, x)
+	default:
+		log.Fatalf("[ TODO ] unknown ast.Ellipsis.Elt: %T", x)
+	}
+
+	return types.Pointer{Type: t}
+}
+
+func TypeFromArrayType(file *ast.File, at *ast.ArrayType) types.Type {
+	var t types.Type
+
 	switch elt := at.Elt.(type) {
 	case *ast.Ident:
-		t = NewTypeFromIdent(elt)
+		t = TypeFromIdent(elt)
 	case *ast.SelectorExpr:
-		t = NewTypeFromASTSelectorExpr(file, elt)
+		t = TypeFromSelectorExpr(file, elt)
 	case *ast.StarExpr:
-		t = NewTypeFromStarExpr(file, elt)
+		t = TypeFromStarExpr(file, elt)
 	default:
-		log.Fatalf("[ BUG ] unknown ast.ArrayType.Elt: %T", elt)
+		log.Fatalf("[ TODO ] unknown ast.ArrayType.Elt: %T", elt)
 	}
-	t.IsArray = true
-	return t
+
+	return types.Slice{Type: t}
+}
+
+func TypeFromMapType(file *ast.File, mt *ast.MapType) types.Type {
+	kType := TypeFromExpr(file, mt.Key)
+	vType := TypeFromExpr(file, mt.Value)
+	return types.NewMapType(kType, vType)
 }

@@ -1,22 +1,10 @@
 package cmd
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"github.com/nullc4t/og/pkg/inspector"
-	"github.com/nullc4t/og/pkg/parser"
-	"github.com/nullc4t/og/pkg/templates"
 	"github.com/spf13/cobra"
 	"github.com/vetcher/go-astra/types"
-	"go/ast"
-	"go/format"
-	astparser "go/parser"
-	"go/printer"
-	"go/token"
-	"golang.org/x/tools/go/ast/astutil"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -33,89 +21,89 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Example: "og gen logging service.go middleware/logging.go",
 	Args:    cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
-		srcFile, err := parser.NewAstra(args[0])
-		if err != nil {
-			logger.Fatal(err)
-		}
-
-		//tmpl := templates.NewRoot()
-		//tmpl, err = tmpl.ParseGlob("templates/*.tmpl")
-		tmpl, err := templates.NewRoot()
-		if err != nil {
-			logger.Fatal(err)
-		}
-
-		tmpl, err = tmpl.ParseFiles("templates/logging_middleware.tmpl")
-		if err != nil {
-			logger.Fatal(err)
-		}
-
-		tmp := new(bytes.Buffer)
-		//err = tmpl.ExecuteTemplate(tmp, "logmw.tmpl", srcFile)
-		err = tmpl.ExecuteTemplate(tmp, "logging_middleware.tmpl", srcFile)
-		if err != nil {
-			logger.Fatal(err)
-		}
-
-		fmt.Println(string(tmp.Bytes()))
-
-		fset := token.NewFileSet()
-		file, err := astparser.ParseFile(fset, "", tmp.Bytes(), 0)
-		if err != nil {
-			logger.Fatal(err)
-		}
-
-		ok := astutil.AddImport(fset, file, srcFile.ImportPath())
-		if !ok {
-			logger.Fatal("not ok")
-		}
-
-		for t, _ := range inspector.GetImportedTypes(srcFile.Astra) {
-			p := inspector.ExtractPackageFromType(t)
-			if importPath := inspector.GetImportPathForPackage(p, srcFile.Astra); importPath != "" {
-				astutil.AddImport(fset, file, importPath)
-			}
-		}
-
-		ast.SortImports(fset, file)
-
-		tmp = new(bytes.Buffer)
-		err = printer.Fprint(tmp, fset, file)
-		if err != nil {
-			logger.Fatal(err)
-		}
-
-		formatted, err := format.Source(tmp.Bytes())
-		if err != nil {
-			logger.Fatal(err)
-		}
-
-		f, err := os.OpenFile(args[1], os.O_WRONLY|os.O_CREATE, 0644)
-		if os.IsNotExist(err) {
-			err = os.MkdirAll(filepath.Dir(args[1]), 0755)
-			if err != nil {
-				logger.Fatal(err)
-			}
-
-			f, err = os.Create(args[1])
-			if err != nil {
-				logger.Fatal(err)
-			}
-
-		}
-		if err != nil {
-			logger.Fatal(err)
-		}
-		defer f.Close()
-
-		_, err = f.Write(formatted)
-		if err != nil {
-			logger.Fatal(err)
-		}
-
-		fmt.Println("Done")
-	},
+	//Run: func(cmd *cobra.Command, args []string) {
+	//	//srcFile, err := parser.NewAstra(args[0])
+	//	//if err != nil {
+	//	//	logger.Fatal(err)
+	//	//}
+	//
+	//	//tmpl := templates.NewRoot()
+	//	//tmpl, err = tmpl.ParseGlob("templates/*.tmpl")
+	//	tmpl, err := templates.NewRoot()
+	//	if err != nil {
+	//		logger.Fatal(err)
+	//	}
+	//
+	//	tmpl, err = tmpl.ParseFiles("templates/logging_middleware.tmpl")
+	//	if err != nil {
+	//		logger.Fatal(err)
+	//	}
+	//
+	//	tmp := new(bytes.Buffer)
+	//	//err = tmpl.ExecuteTemplate(tmp, "logmw.tmpl", srcFile)
+	//	err = tmpl.ExecuteTemplate(tmp, "logging_middleware.tmpl", srcFile)
+	//	if err != nil {
+	//		logger.Fatal(err)
+	//	}
+	//
+	//	fmt.Println(string(tmp.Bytes()))
+	//
+	//	fset := token.NewFileSet()
+	//	file, err := astparser.ParseFile(fset, "", tmp.Bytes(), 0)
+	//	if err != nil {
+	//		logger.Fatal(err)
+	//	}
+	//
+	//	ok := astutil.AddImport(fset, file, srcFile.ImportPath())
+	//	if !ok {
+	//		logger.Fatal("not ok")
+	//	}
+	//
+	//	for t, _ := range inspector.GetImportedTypes(srcFile.Astra) {
+	//		p := inspector.ExtractPackageFromType(t)
+	//		if importPath := inspector.GetImportPathForPackage(p, srcFile.Astra); importPath != "" {
+	//			astutil.AddImport(fset, file, importPath)
+	//		}
+	//	}
+	//
+	//	ast.SortImports(fset, file)
+	//
+	//	tmp = new(bytes.Buffer)
+	//	err = printer.Fprint(tmp, fset, file)
+	//	if err != nil {
+	//		logger.Fatal(err)
+	//	}
+	//
+	//	formatted, err := format.Source(tmp.Bytes())
+	//	if err != nil {
+	//		logger.Fatal(err)
+	//	}
+	//
+	//	f, err := os.OpenFile(args[1], os.O_WRONLY|os.O_CREATE, 0644)
+	//	if os.IsNotExist(err) {
+	//		err = os.MkdirAll(filepath.Dir(args[1]), 0755)
+	//		if err != nil {
+	//			logger.Fatal(err)
+	//		}
+	//
+	//		f, err = os.Create(args[1])
+	//		if err != nil {
+	//			logger.Fatal(err)
+	//		}
+	//
+	//	}
+	//	if err != nil {
+	//		logger.Fatal(err)
+	//	}
+	//	defer f.Close()
+	//
+	//	_, err = f.Write(formatted)
+	//	if err != nil {
+	//		logger.Fatal(err)
+	//	}
+	//
+	//	fmt.Println("Done")
+	//},
 }
 
 func errorHandler(err error) {

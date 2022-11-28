@@ -1,6 +1,9 @@
 package test
 
-import "github.com/nullc4t/og/pkg/extract"
+import (
+	"github.com/go-kit/kit/endpoint"
+	"github.com/nullc4t/og/internal/types"
+)
 
 type Simple interface {
 	Get(i int) (err error)
@@ -8,12 +11,20 @@ type Simple interface {
 	Get3(i int) error
 	Get4(int) (err error)
 	Get5([]int) (err error)
-	Method(method extract.Method) error
-	MethodP(method *extract.Method) error
-	MethodAP(method []*extract.Method) error
+	Method(method types.Method) error
+	MethodP(method *types.Method) error
+	MethodAP(method []*types.Method) error
+	EP(end endpoint.Endpoint) error
 }
 
 type s struct {
+	A string
+	B int
+}
+
+func (s s) EP(end endpoint.Endpoint) error {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (s s) Get(i int) (err error) {
@@ -41,17 +52,17 @@ func (s s) Get5(ints []int) (err error) {
 	panic("implement me")
 }
 
-func (s s) Method(method extract.Method) error {
+func (s s) Method(method types.Method) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (s s) MethodP(method *extract.Method) error {
+func (s s) MethodP(method *types.Method) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (s s) MethodAP(method []*extract.Method) error {
+func (s s) MethodAP(method []*types.Method) error {
 	//TODO implement me
 	panic("implement me")
 }
