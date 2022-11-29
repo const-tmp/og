@@ -9,6 +9,7 @@ type (
 		Package       string
 		Services      []ProtoService
 		Messages      []ProtoMessage
+		Imports       []ProtoImport
 	}
 
 	ProtoMessage struct {
@@ -32,6 +33,10 @@ type (
 		Name   string
 		Number uint
 		OneOf  bool
+	}
+
+	ProtoImport struct {
+		Path string
 	}
 )
 

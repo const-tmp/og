@@ -126,7 +126,10 @@ to quickly create a Cobra application.`,
 
 		unit := generator.NewUnit(
 			sourceFile, tmpl, protoFile, nil, nil,
-			filepath.Join(filepath.Dir(args[0]), "asd.proto"), writer.File,
+			filepath.Join(
+				filepath.Join(filepath.Dir(args[0]), "proto"),
+				filepath.Base(strings.Replace(args[0], ".go", ".proto", 1)),
+			), writer.File,
 		)
 		err = unit.Generate()
 		if err != nil {
