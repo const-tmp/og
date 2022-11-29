@@ -13,6 +13,7 @@ type (
 		ImportPath() string
 		IsImported() bool
 		IsInterface() bool
+		IsBuiltin() bool
 		SetIsInterface()
 	}
 
@@ -76,6 +77,46 @@ func (t *BaseType) SetIsInterface() {
 	t.isInterface = true
 }
 
+func (t *BaseType) IsBuiltin() bool {
+	if t.Package() != "" {
+		return false
+	}
+	switch t.Name() {
+	case "error":
+		return true
+	case "int":
+		return true
+	case "int8":
+		return true
+	case "int16":
+		return true
+	case "int32":
+		return true
+	case "int64":
+		return true
+	case "uint":
+		return true
+	case "uint8":
+		return true
+	case "uint16":
+		return true
+	case "uint32":
+		return true
+	case "uint64":
+		return true
+	case "string":
+		return true
+	case "float32":
+		return true
+	case "float64":
+		return true
+	case "interface{}":
+		return true
+	default:
+		return false
+	}
+}
+
 func (p Pointer) String() string {
 	return "*" + p.Type.String()
 }
@@ -132,6 +173,10 @@ func (t *MapType) SetIsInterface() {
 	panic("cannot set interface on map")
 }
 
+func (t *GenericType) IsBuiltin() bool {
+	return t.name.IsBuiltin() || t.index.IsBuiltin()
+}
+
 func NewGenericType(name, index Type) Type {
 	return &GenericType{name: name, index: index}
 }
@@ -174,4 +219,8 @@ func (t *GenericType) IsInterface() bool {
 
 func (t *GenericType) SetIsInterface() {
 	panic("cannot set interface on generic type")
+}
+
+func (t *MapType) IsBuiltin() bool {
+	return t.key.IsBuiltin() || t.value.IsBuiltin()
 }
