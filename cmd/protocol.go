@@ -5,12 +5,12 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/nullc4t/og/internal/extractor"
 	"github.com/nullc4t/og/internal/types"
 	"github.com/nullc4t/og/pkg/editor"
 	"github.com/nullc4t/og/pkg/extract"
 	"github.com/nullc4t/og/pkg/generator"
 	"github.com/nullc4t/og/pkg/names"
-	"github.com/nullc4t/og/pkg/source"
 	"github.com/nullc4t/og/pkg/templates"
 	"github.com/nullc4t/og/pkg/transform"
 	"github.com/nullc4t/og/pkg/writer"
@@ -54,7 +54,7 @@ to quickly create a Cobra application.`,
 			exchangeStructs := transform.Interface2ExchangeStructs(iface)
 
 			logger.Println(iface.Name, "used imports:")
-			for _, imp := range iface.UsedImports {
+			for _, imp := range iface.Dependencies {
 				logger.Println(iface.Name, imp.Name, imp.Path)
 			}
 
@@ -63,14 +63,14 @@ to quickly create a Cobra application.`,
 				exchangeStruct = transform.RenameExchangeStruct(exchangeStruct)
 			}
 
-			sf, err := source.NewFile(args[0])
+			sf, err := extractor.GoFile(args[0])
 			if err != nil {
 				logger.Fatal(err)
 			}
 
 			// generate endpoints
 			endpointSetUnit := generator.NewUnit(nil, endpointSetTmpl, map[string]any{
-				"Pkg":            "endpoints",
+				"Package":        "endpoints",
 				"Interface":      iface,
 				"ServicePackage": sf.Package,
 			}, nil,
@@ -87,7 +87,7 @@ to quickly create a Cobra application.`,
 
 			// generate server endpoints
 			endpointUnit := generator.NewUnit(nil, endpointTmpl, map[string]any{
-				"Pkg":            "endpoints",
+				"Package":        "endpoints",
 				"Interface":      iface,
 				"ServicePackage": sf.Package,
 			}, nil,
@@ -104,14 +104,13 @@ to quickly create a Cobra application.`,
 
 			// generate exchanges
 			unit := generator.NewUnit(nil, tmpl, map[string]any{
-				//"Pkg": file.Name.Name,
-				"Pkg":     "endpoints",
+				"Package": "endpoints",
 				"Structs": exchangeStructs,
 			}, []editor.CodeEditor{
-				//editor.AddNamedImportsFactory(iface.UsedImports...),
+				//editor.AddNamedImportsFactory(iface.Dependencies...),
 			},
 				[]editor.ASTEditor{
-					editor.ASTImportsFactory(iface.UsedImports...),
+					editor.ASTImportsFactory(iface.Dependencies...),
 				}, filepath.Join(
 					filepath.Dir(args[0]), "endpoints",
 					names.FileNameWithSuffix(iface.Name, "exchanges"),

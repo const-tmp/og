@@ -5,6 +5,7 @@ import (
 	"fmt"
 	types2 "github.com/nullc4t/og/internal/types"
 	"github.com/nullc4t/og/pkg/names"
+	"github.com/nullc4t/og/pkg/transform"
 	"github.com/vetcher/go-astra/types"
 	"strings"
 	"text/template"
@@ -30,7 +31,7 @@ var (
 		"mapslice2slice":            MapSlice2Slice,
 		"plus":                      Plus,
 		"camel2snake":               names.Camel2Snake,
-		"pbtype":                    ToProtobufType,
+		"pbtype":                    transform.Go2ProtobufType,
 	}
 )
 

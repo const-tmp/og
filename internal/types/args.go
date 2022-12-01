@@ -7,8 +7,9 @@ import (
 
 type (
 	Arg struct {
-		Name string
-		Type Type
+		Name         string
+		Type         Type
+		Dependencies []Import
 	}
 
 	Args    []*Arg

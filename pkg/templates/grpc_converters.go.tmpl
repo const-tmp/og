@@ -1,0 +1,33 @@
+package templates
+
+var GRPCConverters = `
+package {{ .Package }}
+
+import (
+    "context"
+
+    "google.golang.org/grpc"
+
+    "github.com/go-kit/kit/endpoint"
+    "github.com/go-kit/kit/log"
+    "github.com/go-kit/kit/transport"
+    grpctransport "github.com/go-kit/kit/transport/grpc"
+)
+
+{{ range .Messages }}
+// decodeGRPC{{ .Name }} is a transport/grpc.DecodeRequestFunc that converts a
+// gRPC sum request to a user-domain sum request. Primarily useful in a server.
+func DecodeGRPC{{ .Name }}(_ context.Context, grpcReq interface{}) (interface{}, error) {
+    req := grpcReq.(*proto.{{ .Name }})
+    return endpoints.{{ .Name }}{/* TODO */}, nil
+}
+
+// EncodeGRPC{{ .Name }} is a transport/grpc.EncodeResponseFunc that converts
+// a user-domain concat response to a gRPC concat reply. Primarily useful in a
+// server.
+func encodeGRPC{{ .Name }}(_ context.Context, response interface{}) (interface{}, error) {
+    resp := response.(endpoints.{{ .Name }})
+    return &proto.{{ .Name }}{/* TODO */}, nil
+}
+{{ end }}
+`

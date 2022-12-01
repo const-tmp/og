@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func ImportString(file *ast.File, pkg string) string {
+func ImportStringForPackage(file *ast.File, pkg string) string {
 	for _, spec := range file.Imports {
 		pathString := strings.Replace(spec.Path.Value, "\"", "", -1)
 

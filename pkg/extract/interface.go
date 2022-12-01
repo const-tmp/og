@@ -77,7 +77,7 @@ func InterfaceFromTypeSpec(file *ast.File, typeSpec *ast.TypeSpec) *types.Interf
 		}
 	}
 
-	i.UsedImports = importSet.All()
+	i.Dependencies = importSet.All()
 
 	return &i
 }

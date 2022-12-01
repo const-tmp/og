@@ -3,8 +3,8 @@ package generator
 import (
 	"bytes"
 	"fmt"
+	"github.com/nullc4t/og/internal/types"
 	"github.com/nullc4t/og/pkg/editor"
-	"github.com/nullc4t/og/pkg/source"
 	"go/format"
 	"go/parser"
 	"go/printer"
@@ -20,7 +20,7 @@ type (
 	FileWriter func(path string, data SourceCode) error
 
 	Unit struct {
-		src           *source.File
+		src           *types.GoFile
 		template      *template.Template
 		dot           Dot
 		editCodeAfter []editor.CodeEditor
@@ -30,7 +30,7 @@ type (
 	}
 )
 
-func NewUnit(src *source.File, template *template.Template, dot Dot, editAfter []editor.CodeEditor, editASTAfter []editor.ASTEditor, dstPath string, fileWriter FileWriter) *Unit {
+func NewUnit(src *types.GoFile, template *template.Template, dot Dot, editAfter []editor.CodeEditor, editASTAfter []editor.ASTEditor, dstPath string, fileWriter FileWriter) *Unit {
 	return &Unit{
 		src:           src,
 		template:      template,
@@ -43,7 +43,7 @@ func NewUnit(src *source.File, template *template.Template, dot Dot, editAfter [
 }
 
 // New returns new codegen Unit that can be Unit.Generate()'ed and written to FileWriter
-func New(src *source.File, tmpl *template.Template, dot Dot, fw FileWriter, dstPath string) Unit {
+func New(src *types.GoFile, tmpl *template.Template, dot Dot, fw FileWriter, dstPath string) Unit {
 	u := Unit{
 		src:        src,
 		template:   tmpl,
@@ -103,12 +103,14 @@ func (u Unit) Generate() error {
 		}
 	}
 
-	//formatted, err := format.Source(tmp.Bytes())
-	//if err != nil {
-	//	return err
-	//}
+	if u.editCodeAfter != nil || u.editASTAfter != nil {
+		formatted, err := format.Source(tmp.Bytes())
+		if err != nil {
+			return err
+		}
+		return u.fileWriter(u.dstPath, bytes.NewBuffer(formatted))
+	}
 
-	//return u.fileWriter(u.dstPath, bytes.NewBuffer(formatted))
 	return u.fileWriter(u.dstPath, tmp)
 }
 

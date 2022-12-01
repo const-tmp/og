@@ -9,11 +9,6 @@ import (
 var mapRegex = regexp.MustCompile(`map\[(.+)](.+)`)
 
 func Go2ProtobufType(s string) string {
-	if strings.Contains(s, "map") {
-		sm := mapRegex.FindStringSubmatch(s)
-		return fmt.Sprintf("map<%s, %s>", Go2ProtobufType(sm[1]), Go2ProtobufType(sm[2]))
-	}
-
 	var prefix, protoType string
 
 	s = strings.Replace(s, "*", "", 1)
@@ -21,6 +16,11 @@ func Go2ProtobufType(s string) string {
 	if strings.Contains(s, "[]") {
 		s = strings.Replace(s, "[]", "", 1)
 		prefix = "repeated "
+	}
+
+	if strings.HasPrefix(s, "map") {
+		sm := mapRegex.FindStringSubmatch(s)
+		return fmt.Sprintf("map<%s, %s>", Go2ProtobufType(sm[1]), Go2ProtobufType(sm[2]))
 	}
 
 	switch s {
@@ -39,13 +39,15 @@ func Go2ProtobufType(s string) string {
 	case "string":
 		protoType = "string"
 	case "float32":
-		protoType = "float32"
+		protoType = "float"
 	case "float64":
-		protoType = "float64"
+		protoType = "float"
 	case "any":
 		protoType = "google.protobuf.Any"
 	case "interface{}":
 		protoType = "google.protobuf.Any"
+	case "time.Time":
+		protoType = "google.protobuf.Timestamp"
 	default:
 		if strings.Contains(s, ".") {
 			fmt.Println(s)

@@ -5,10 +5,10 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/nullc4t/og/internal/extractor"
 	"github.com/nullc4t/og/internal/types"
 	"github.com/nullc4t/og/pkg/extract"
 	"github.com/nullc4t/og/pkg/generator"
-	"github.com/nullc4t/og/pkg/source"
 	"github.com/nullc4t/og/pkg/templates"
 	"github.com/nullc4t/og/pkg/transform"
 	"github.com/nullc4t/og/pkg/writer"
@@ -31,7 +31,7 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("proto called")
 
-		sourceFile, err := source.NewFile(args[0])
+		sourceFile, err := extractor.GoFile(args[0])
 		if err != nil {
 			logger.Fatal(err)
 		}
@@ -51,7 +51,7 @@ to quickly create a Cobra application.`,
 			transform.RenameArgsInInterface(iface)
 
 			logger.Println(iface.Name, "used imports:")
-			for _, imp := range iface.UsedImports {
+			for _, imp := range iface.Dependencies {
 				logger.Println(iface.Name, imp.Name, imp.Path)
 			}
 
@@ -89,12 +89,13 @@ to quickly create a Cobra application.`,
 					continue
 				}
 				// get import string for ty
-				importString := extract.ImportString(sourceFile.AST, ty.Package())
+				importString := extract.ImportStringForPackage(sourceFile.AST, ty.Package())
 
 				// get fs path for package
 				packagePath, err := extract.SourcePath4Package(sourceFile.Module, sourceFile.ModulePath, importString, sourceFile.FilePath)
 				if err != nil {
-					logger.Fatal(err)
+					logger.Println(err)
+					continue
 				}
 
 				iface, str, err := extract.ImportedTypeFromPackage(packagePath, ty)
@@ -115,7 +116,6 @@ to quickly create a Cobra application.`,
 
 			protoService := transform.Interface2ProtoService(iface)
 			protoFile.Services = append(protoFile.Services, protoService)
-
 		}
 
 		for _, service := range protoFile.Services {

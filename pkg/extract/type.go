@@ -49,13 +49,17 @@ func DepPackagePathFromModule(moduleName, modulePath, pkg string) string {
 }
 
 // SourcePath4Package returns pkg source dir path;
-func SourcePath4Package(moduleName, modulePath, pkg, scanStartPoint string) (string, error) {
+func SourcePath4Package(moduleName, modulePath, pkg, fileOrPackage string) (string, error) {
 	if strings.Contains(pkg, moduleName) {
 		return DepPackagePathFromModule(moduleName, modulePath, pkg), nil
 		//return strings.Replace(pkg, moduleName, modulePath, 1), nil
 	}
 
-	goModData, err := GoMod(filepath.Dir(scanStartPoint))
+	if !strings.Contains(pkg, "/") {
+		return "", fmt.Errorf("%s is builtin package", pkg)
+	}
+
+	goModData, err := GoMod(filepath.Dir(fileOrPackage))
 	if err != nil {
 		return "", err
 	}
@@ -75,7 +79,7 @@ func SourcePath4Package(moduleName, modulePath, pkg, scanStartPoint string) (str
 
 // ImportedType find package with type t and return parsed struct/interface
 func ImportedType(file *ast.File, filePath, moduleName, modulePath string, t types.Type) (*types.ExchangeStruct, error) {
-	typeImportPath := ImportString(file, t.Package())
+	typeImportPath := ImportStringForPackage(file, t.Package())
 
 	packagePath, err := SourcePath4Package(moduleName, modulePath, typeImportPath, filePath)
 	if err != nil {

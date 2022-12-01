@@ -73,7 +73,7 @@ func TypeFromSelectorExpr(file *ast.File, se *ast.SelectorExpr) types.Type {
 		log.Fatal("[ BUG ] unknown ast.SelectorExpr.X", pIdent)
 	}
 
-	return types.NewType(se.Sel.Name, p, ImportString(file, p))
+	return types.NewType(se.Sel.Name, p, ImportStringForPackage(file, p))
 }
 
 func TypeFromStarExpr(file *ast.File, se *ast.StarExpr) types.Type {
