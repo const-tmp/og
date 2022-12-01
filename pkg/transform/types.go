@@ -50,7 +50,6 @@ func Go2ProtobufType(s string) string {
 		protoType = "google.protobuf.Timestamp"
 	default:
 		if strings.Contains(s, ".") {
-			fmt.Println(s)
 			protoType = strings.Split(s, ".")[1]
 		}
 	}

@@ -144,39 +144,39 @@ func Plus(i, n int) int {
 	return i + n
 }
 
-func ToProtobufType(s string) (string, error) {
-	var prefix string
-
-	s = strings.Replace(s, "*", "", 1)
-	if strings.Contains(s, "[]") {
-		s = strings.Replace(s, "[]", "", 1)
-		prefix = "repeated "
-	}
-
-	switch s {
-	case "error":
-		return prefix + "string", nil
-	case "int":
-		return prefix + "int32", nil
-	case "int32":
-		return prefix + "int32", nil
-	case "uint":
-		return prefix + "uint32", nil
-	case "uint32":
-		return prefix + "uint32", nil
-	case "uint64":
-		return prefix + "uint64", nil
-	case "string":
-		return prefix + "string", nil
-	case "float32":
-		return prefix + "float32", nil
-	case "float64":
-		return prefix + "float64", nil
-	default:
-		if strings.Contains(s, ".") {
-			fmt.Println(s)
-			return prefix + strings.Split(s, ".")[1], nil
-		}
-		return "", fmt.Errorf("unknown type: %s", s)
-	}
-}
+//func ToProtobufType(s string) (string, error) {
+//	var prefix string
+//
+//	s = strings.Replace(s, "*", "", 1)
+//	if strings.Contains(s, "[]") {
+//		s = strings.Replace(s, "[]", "", 1)
+//		prefix = "repeated "
+//	}
+//
+//	switch s {
+//	case "error":
+//		return prefix + "string", nil
+//	case "int":
+//		return prefix + "int32", nil
+//	case "int32":
+//		return prefix + "int32", nil
+//	case "uint":
+//		return prefix + "uint32", nil
+//	case "uint32":
+//		return prefix + "uint32", nil
+//	case "uint64":
+//		return prefix + "uint64", nil
+//	case "string":
+//		return prefix + "string", nil
+//	case "float32":
+//		return prefix + "float32", nil
+//	case "float64":
+//		return prefix + "float64", nil
+//	default:
+//		if strings.Contains(s, ".") {
+//			fmt.Println(s)
+//			return prefix + strings.Split(s, ".")[1], nil
+//		}
+//		return "", fmt.Errorf("unknown type: %s", s)
+//	}
+//}

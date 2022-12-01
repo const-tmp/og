@@ -19,54 +19,14 @@ type (
 	}
 
 	Extractor struct {
-		ModuleMap ModuleMap
+		ModuleMap types.ModuleMap
 		fset      *token.FileSet
-		TypeMap   TypeMap
-		//File      *ast.File
+		TypeMap   types.TypeMap
 	}
-
-	TypeData struct {
-		Type      types.Type
-		Struct    *types.Struct
-		Interface *types.Interface
-	}
-
-	TypeMap   map[string]TypeData
-	ModuleMap map[string]*types.Module
 )
 
 func NewExtractor() *Extractor {
-	return &Extractor{ModuleMap: make(ModuleMap), TypeMap: make(TypeMap), fset: token.NewFileSet()}
-}
-
-func (m TypeMap) Contains(s string) bool {
-	_, ok := m[s]
-	return ok
-}
-
-func (m TypeMap) Add(t types.Type) {
-	m[t.Package()+t.Name()] = TypeData{Type: t}
-}
-
-func (m ModuleMap) Add(f *types.GoFile) error {
-	if mod, ok := m[f.Module]; ok {
-		if p, ok := mod.Packages[f.Package]; ok {
-			if _, ok := p.Files[f.FilePath]; ok {
-				return fmt.Errorf("file %s already parsed", f.FilePath)
-			} else {
-				p.Files[f.FilePath] = f
-			}
-		} else {
-			mod.Packages[f.Package] = NewPackageFromGoFile(f)
-		}
-	} else {
-		m[f.Module] = &types.Module{
-			Name:     f.Module,
-			Path:     f.ModulePath,
-			Packages: map[string]*types.Package{f.Package: NewPackageFromGoFile(f)},
-		}
-	}
-	return nil
+	return &Extractor{ModuleMap: make(types.ModuleMap), TypeMap: make(types.TypeMap), fset: token.NewFileSet()}
 }
 
 func (e Extractor) ParseFile(path string) error {
@@ -96,15 +56,6 @@ func (e Extractor) ParseFile(path string) error {
 
 	fmt.Println(path, "parsed")
 	return nil
-}
-
-func NewPackageFromGoFile(f *types.GoFile) *types.Package {
-	return &types.Package{
-		Name:       f.Package,
-		ImportPath: f.ImportPath(),
-		Path:       f.FilePath,
-		Files:      map[string]*types.GoFile{f.FilePath: f},
-	}
 }
 
 func (e Extractor) TypeDefs(file *types.GoFile) ([]*types.Interface, []*types.Struct, error) {
@@ -144,12 +95,14 @@ TypeLoop:
 		for _, iface := range ifaces {
 			if iface.Name == data.Type.Name() && strings.Contains(data.Type.ImportPath(), file.Module) {
 				data.Interface = iface
+				e.TypeMap.Set(data.Type, data)
 				continue TypeLoop
 			}
 		}
 		for _, str := range structs {
 			if str.Name == data.Type.Name() && strings.Contains(data.Type.ImportPath(), file.Module) {
 				data.Struct = str
+				e.TypeMap.Set(data.Type, data)
 				continue TypeLoop
 			}
 		}
@@ -157,64 +110,32 @@ TypeLoop:
 
 	for _, str := range structs {
 		for _, field := range str.Fields {
-			if field.Type.IsImported() {
-				fmt.Println("imported type:", field.Type)
-				if e.checkIsTypeParsed(field.Type) {
-					continue
-				}
-
-				err := e.recursiveParsePackage(file, field.Type.Package())
-				if err != nil {
-					fmt.Printf("recursive parse package %s error: %s", field.Type.Package(), err)
-					//return nil, nil, err
-				}
+			if field.Type == nil {
+				fmt.Println("NULL TYPE:", str.Name, field.Name, file.FilePath)
 			}
+			_ = e.checkAndParseType(file, field.Type)
 		}
 	}
-
 	for _, iface := range ifaces {
 		for _, method := range iface.Methods {
 			for _, arg := range method.Args {
 				if arg.Type == nil {
 					utils.BugPanic(fmt.Sprint(method.Name, arg.Name, "null Type"))
 				}
-				if arg.Type.IsImported() {
-					fmt.Println("imported type:", arg.Type)
-					if e.checkIsTypeParsed(arg.Type) {
-						continue
-					}
-
-					err := e.recursiveParsePackage(file, arg.Type.Package())
-					if err != nil {
-						fmt.Printf("recursive parse package %s error: %s", arg.Type.Package(), err)
-						//return nil, nil, err
-					}
-				}
+				_ = e.checkAndParseType(file, arg.Type)
 			}
 			for _, arg := range method.Results.Args {
-				if arg.Type.IsImported() {
-					fmt.Println("imported type:", arg.Type)
-					if e.checkIsTypeParsed(arg.Type) {
-						continue
-					}
-
-					err := e.recursiveParsePackage(file, arg.Type.Package())
-					if err != nil {
-						fmt.Printf("recursive parse package %s error: %s", arg.Type.Package(), err)
-						//return nil, nil, err
-					}
-				}
+				_ = e.checkAndParseType(file, arg.Type)
 			}
 		}
-
 	}
 
-	fmt.Println("getting type defs in ", file.FilePath, " done")
+	fmt.Println("type defs ", file.FilePath, " done")
 	return ifaces, structs, nil
 }
 
 func (e Extractor) checkIsTypeParsed(ty types.Type) bool {
-	t := e.TypeMap[ty.Package()+ty.Name()]
+	t := e.TypeMap.Get(ty)
 	if t.Interface != nil || t.Struct != nil {
 		fmt.Println(ty, "has interface=", t.Interface != nil, "has struct=", t.Struct != nil)
 		return true
@@ -222,9 +143,17 @@ func (e Extractor) checkIsTypeParsed(ty types.Type) bool {
 	return false
 }
 
-func (e Extractor) recursiveParsePackage(file *types.GoFile, pkgName string) error {
-	fmt.Println("recursiveParsePackage:", pkgName)
+func (e Extractor) checkAndParseType(file *types.GoFile, t types.Type) error {
+	if !t.IsImported() {
+		return nil
+	}
+	if e.checkIsTypeParsed(t) {
+		return nil
+	}
+	return e.recursiveParsePackage(file, t.Package())
+}
 
+func (e Extractor) recursiveParsePackage(file *types.GoFile, pkgName string) error {
 	packagePath, err := extract.SourcePath4Package(file.Module, file.ModulePath, extract.ImportStringForPackage(file.AST, pkgName), file.FilePath)
 	if err != nil {
 		return err
@@ -246,10 +175,6 @@ func (e Extractor) recursiveParsePackage(file *types.GoFile, pkgName string) err
 
 	return nil
 }
-
-//func (e Extractor) SourcePath4Package(f *types.GoFile) (string, error) {
-//	return extract.SourcePath4Package(f.Module, f.ModulePath, f.Package, f.FilePath)
-//}
 
 func (e Extractor) InterfaceFromTypeSpec(file *ast.File, typeSpec *ast.TypeSpec) *types.Interface {
 	iface, ok := typeSpec.Type.(*ast.InterfaceType)
@@ -296,6 +221,10 @@ func (e Extractor) InterfaceFromTypeSpec(file *ast.File, typeSpec *ast.TypeSpec)
 }
 
 func (e Extractor) ArgsFromFields(file *ast.File, fields *ast.FieldList) types.Args {
+	if fields == nil || fields.List == nil {
+		return nil
+	}
+
 	var args []*types.Arg
 
 	for _, arg := range fields.List {
@@ -309,12 +238,11 @@ func (e Extractor) ArgsFromFields(file *ast.File, fields *ast.FieldList) types.A
 		}
 
 		t = e.TypeFromExpr(file, arg.Type)
-
-		if e.TypeMap.Contains(t.Package() + t.Name()) {
-			t = e.TypeMap[t.Package()+t.Name()].Type
-		} else {
-			e.TypeMap.Add(t)
+		if t == nil {
+			continue
 		}
+
+		e.TypeMap.Add(t)
 
 		if len(arg.Names) == 0 {
 			args = append(args, &types.Arg{Type: t})
@@ -343,21 +271,24 @@ func (e Extractor) StructFromTypeSpec(file *ast.File, typeSpec *ast.TypeSpec) *t
 		if field.Tag != nil {
 			tag = field.Tag.Value
 		}
+		t := e.TypeFromExpr(file, field.Type)
+		if t == nil {
+			continue
+		}
 
-		switch len(field.Names) {
-		case 1:
+		if len(field.Names) == 0 {
 			s.Fields = append(s.Fields, types.Field{
-				Name: field.Names[0].Name,
-				Type: e.TypeFromExpr(file, field.Type),
+				Type: t,
 				Tag:  tag,
 			})
-		case 0:
-			s.Fields = append(s.Fields, types.Field{
-				Type: e.TypeFromExpr(file, field.Type),
-				Tag:  tag,
-			})
-		default:
-			panic(fmt.Sprintf("[ THIS IS A BUG ] unexpected len(field.Names) == %d", len(field.Names)))
+		} else {
+			for _, name := range field.Names {
+				s.Fields = append(s.Fields, types.Field{
+					Name: name.Name,
+					Type: t,
+					Tag:  tag,
+				})
+			}
 		}
 	}
 
@@ -415,7 +346,7 @@ func (e Extractor) TypeFromExpr(file *ast.File, field ast.Expr) types.Type {
 
 	switch v := field.(type) {
 	case *ast.Ident:
-		t = e.TypeFromIdent(v)
+		t = e.TypeFromIdent(file, v)
 	case *ast.SelectorExpr:
 		t = e.TypeFromSelectorExpr(file, v)
 	case *ast.ArrayType:
@@ -428,6 +359,13 @@ func (e Extractor) TypeFromExpr(file *ast.File, field ast.Expr) types.Type {
 		t = e.TypeFromMapType(file, v)
 	case *ast.IndexExpr:
 		fmt.Println("ast.IndexExpr type is not implemented")
+	case *ast.InterfaceType:
+		t = types.NewType("interface{}", "", "")
+		t.SetIsInterface()
+	case *ast.FuncType:
+		fmt.Println("ast.FuncType cannot be used in transport")
+		return nil
+
 	default:
 		log.Fatalf("[ BUG ] unknown ast.Expr: %T file: %s", v, file.Name.Name)
 	}
@@ -435,8 +373,8 @@ func (e Extractor) TypeFromExpr(file *ast.File, field ast.Expr) types.Type {
 	return t
 }
 
-func (e Extractor) TypeFromIdent(id *ast.Ident) types.Type {
-	return types.NewType(id.Name, "", "")
+func (e Extractor) TypeFromIdent(file *ast.File, id *ast.Ident) types.Type {
+	return types.NewType(id.Name, file.Name.Name, extract.ImportStringForPackage(file, file.Name.Name))
 }
 
 func (e Extractor) TypeFromSelectorExpr(file *ast.File, se *ast.SelectorExpr) types.Type {
@@ -457,7 +395,7 @@ func (e Extractor) TypeFromStarExpr(file *ast.File, se *ast.StarExpr) types.Type
 
 	switch x := se.X.(type) {
 	case *ast.Ident:
-		t = e.TypeFromIdent(x)
+		t = e.TypeFromIdent(file, x)
 	case *ast.SelectorExpr:
 		t = e.TypeFromSelectorExpr(file, x)
 	case *ast.ArrayType:
@@ -474,7 +412,7 @@ func (e Extractor) TypeFromEllipsis(file *ast.File, el *ast.Ellipsis) types.Type
 
 	switch x := el.Elt.(type) {
 	case *ast.Ident:
-		t = e.TypeFromIdent(x)
+		t = e.TypeFromIdent(file, x)
 	case *ast.SelectorExpr:
 		t = e.TypeFromSelectorExpr(file, x)
 	case *ast.ArrayType:
@@ -491,11 +429,19 @@ func (e Extractor) TypeFromArrayType(file *ast.File, at *ast.ArrayType) types.Ty
 
 	switch elt := at.Elt.(type) {
 	case *ast.Ident:
-		t = e.TypeFromIdent(elt)
+		t = e.TypeFromIdent(file, elt)
 	case *ast.SelectorExpr:
 		t = e.TypeFromSelectorExpr(file, elt)
 	case *ast.StarExpr:
 		t = e.TypeFromStarExpr(file, elt)
+	case *ast.InterfaceType:
+		t = types.NewType("interface{}", "", "")
+		t.SetIsInterface()
+	case *ast.FuncType:
+		fmt.Println("ast.FuncType cannot be used in transport")
+		return nil
+	case *ast.ArrayType:
+		return e.TypeFromArrayType(file, elt)
 	default:
 		log.Fatalf("[ TODO ] unknown ast.ArrayType.Elt: %T", elt)
 	}
@@ -506,5 +452,8 @@ func (e Extractor) TypeFromArrayType(file *ast.File, at *ast.ArrayType) types.Ty
 func (e Extractor) TypeFromMapType(file *ast.File, mt *ast.MapType) types.Type {
 	kType := e.TypeFromExpr(file, mt.Key)
 	vType := e.TypeFromExpr(file, mt.Value)
+	if kType == nil || vType == nil {
+		return nil
+	}
 	return types.NewMapType(kType, vType)
 }
