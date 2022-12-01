@@ -24,7 +24,7 @@ func Go2ProtobufType(s string) string {
 	}
 
 	switch s {
-	case "error":
+	case "error", "Error":
 		protoType = "string"
 	case "int":
 		protoType = "int32"

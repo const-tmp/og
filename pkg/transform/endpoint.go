@@ -72,3 +72,14 @@ func RenameArgsInInterface(iface types.Interface) {
 		}
 	}
 }
+
+func RenameEmpty(t types.Type) string {
+	switch t.Name() {
+	case "error":
+		return "Error"
+	case "ctx":
+		return "Context"
+	default:
+		return names.GetExportedName(t.Name())
+	}
+}

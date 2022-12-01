@@ -14,11 +14,42 @@ func Args2ProtoFields(args types.Args) []types.ProtoField {
 		if arg.Type.Name() == "Context" {
 			continue
 		}
+		var name string
+		if arg.Name != "" {
+			name = arg.Name
+		} else {
+			name = RenameEmpty(arg.Type)
+		}
 		res = append(res, types.ProtoField{
 			Type:   Go2ProtobufType(arg.Type.String()),
-			Name:   names.Camel2Snake(arg.Name),
+			Name:   names.Camel2Snake(name),
 			Number: uint(i + 1),
 			OneOf:  arg.Type.IsInterface(),
+		})
+		i++
+	}
+
+	return res
+}
+
+func Fields2ProtoFields(args []types.Field) []types.ProtoField {
+	var res []types.ProtoField
+	var i int
+
+	for _, arg := range args {
+		if arg.Type.Name() == "Context" {
+			continue
+		}
+		var name string
+		if arg.Name != "" {
+			name = arg.Name
+		} else {
+			name = RenameEmpty(arg.Type)
+		}
+		res = append(res, types.ProtoField{
+			Type:   Go2ProtobufType(arg.Type.String()),
+			Name:   names.Camel2Snake(name),
+			Number: uint(i + 1),
 		})
 		i++
 	}
@@ -50,7 +81,7 @@ func Struct2ProtoMessage(s types.Struct) types.ProtoMessage {
 	var fields []types.ProtoField
 	for i, field := range s.Fields {
 		fields = append(fields, types.ProtoField{
-			Type:   field.Type.Name(),
+			Type:   Go2ProtobufType(field.Type.Name()),
 			Name:   names.Camel2Snake(field.Name),
 			Number: uint(i + 1),
 		})

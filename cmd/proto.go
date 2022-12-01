@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/nullc4t/og/internal/extractor"
 	"github.com/nullc4t/og/internal/types"
-	"github.com/nullc4t/og/pkg/extract"
 	"github.com/nullc4t/og/pkg/generator"
 	"github.com/nullc4t/og/pkg/templates"
 	"github.com/nullc4t/og/pkg/transform"
@@ -36,9 +35,13 @@ to quickly create a Cobra application.`,
 			logger.Fatal(err)
 		}
 
-		tmpl := template.Must(template.New("").Funcs(templates.FuncMap).Parse(templates.Proto2))
+		ex := extractor.NewExtractor()
+		err = ex.ParseFile(args[0], "", 2)
+		if err != nil {
+			logger.Fatal(err)
+		}
 
-		ifaces := extract.InterfacesFromASTFile(sourceFile.AST)
+		tmpl := template.Must(template.New("").Funcs(templates.FuncMap).Parse(templates.Proto2))
 
 		protoPkg := "proto"
 		var protoFile = types.ProtoFile{
@@ -47,80 +50,24 @@ to quickly create a Cobra application.`,
 			Package:       "service",
 		}
 
-		for _, iface := range ifaces {
-			transform.RenameArgsInInterface(iface)
-
-			logger.Println(iface.Name, "used imports:")
-			for _, imp := range iface.Dependencies {
-				logger.Println(iface.Name, imp.Name, imp.Path)
-			}
-
-			var importedTypes = map[string]types.Type{}
-
-			for _, method := range iface.Methods {
-				for _, arg := range method.Args {
-					if arg.Type.IsImported() {
-						ts := stripSliceAndPointer(arg.Type.String())
-						a, ok := importedTypes[ts]
-						if ok {
-							// doing a "singleton" type
-							arg.Type = a
-						} else {
-							importedTypes[ts] = arg.Type
-						}
-					}
-				}
-				for _, arg := range method.Results.Args {
-					if arg.Type.IsImported() {
-						ts := stripSliceAndPointer(arg.Type.String())
-						a, ok := importedTypes[ts]
-						if ok {
-							// doing a "singleton" type
-							arg.Type = a
-						}
-						importedTypes[ts] = arg.Type
-					}
-				}
-			}
-
-			// for each imported type, find package, file, decl to add them to proto file
-			for _, ty := range importedTypes {
-				if ty.Name() == "Context" {
-					continue
-				}
-				// get import string for ty
-				importString := extract.ImportStringForPackage(sourceFile.AST, ty.Package())
-
-				// get fs path for package
-				packagePath, err := extract.SourcePath4Package(sourceFile.Module, sourceFile.ModulePath, importString, sourceFile.FilePath)
-				if err != nil {
-					logger.Println(err)
-					continue
-				}
-
-				iface, str, err := extract.ImportedTypeFromPackage(packagePath, ty)
-				if err != nil {
-					logger.Fatal(err)
-				}
-
-				if iface != nil {
-					ty.SetIsInterface()
-					protoFile.Messages = append(protoFile.Messages, types.ProtoMessage{Name: iface.Name})
-				}
-				if str != nil {
-					protoFile.Messages = append(protoFile.Messages, transform.Struct2ProtoMessage(*str))
-				}
-
-				logger.Println(ty.String(), ty.IsInterface())
-			}
-
-			protoService := transform.Interface2ProtoService(iface)
+		for _, iface := range ex.ModuleMap[sourceFile.Module].Packages[sourceFile.Package].Interfaces {
+			protoService := transform.Interface2ProtoService(*iface)
 			protoFile.Services = append(protoFile.Services, protoService)
+			for _, rpc := range protoService.Fields {
+				protoFile.Messages = append(protoFile.Messages, rpc.Request, rpc.Response)
+			}
 		}
 
-		for _, service := range protoFile.Services {
-			for _, rpc := range service.Fields {
-				protoFile.Messages = append(protoFile.Messages, rpc.Request, rpc.Response)
+		for _, module := range ex.ModuleMap {
+			for _, p := range module.Packages {
+				for _, s := range p.Structs {
+					protoFile.Messages = append(protoFile.Messages, transform.Struct2ProtoMessage(*s))
+					logger.Println(s.Name)
+					protoFile.Messages = append(protoFile.Messages, types.ProtoMessage{
+						Name:   s.Name,
+						Fields: transform.Fields2ProtoFields(s.Fields),
+					})
+				}
 			}
 		}
 

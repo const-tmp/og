@@ -13,7 +13,7 @@ type (
 		ImportPath string
 		Path       string
 		Files      map[string]*GoFile
-		Structs    []*Struct
-		Interfaces []*Interface
+		Structs    map[string]*Struct
+		Interfaces map[string]*Interface
 	}
 )

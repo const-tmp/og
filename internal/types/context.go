@@ -70,5 +70,7 @@ func NewPackageFromGoFile(f *GoFile) *Package {
 		ImportPath: f.ImportPath(),
 		Path:       f.FilePath,
 		Files:      map[string]*GoFile{f.FilePath: f},
+		Structs:    make(map[string]*Struct),
+		Interfaces: make(map[string]*Interface),
 	}
 }

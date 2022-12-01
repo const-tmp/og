@@ -23,34 +23,34 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("extract called")
 		ex := extractor.NewExtractor()
-		err := ex.ParseFile(args[0])
+		err := ex.ParseFile(args[0], "", 2)
 		if err != nil {
 			logger.Fatal(err)
 		}
 
-		//for _, module := range ex.ModuleMap {
-		//	logger.Println(module.Name, module.Path)
-		//	for _, p := range module.Packages {
-		//		logger.Println("\t", p.Name, p.ImportPath, p.Path)
-		//		for s, _ := range p.Files {
-		//			logger.Println("\t\t", s)
-		//		}
-		//		for _, s := range p.Structs {
-		//			logger.Println("\t\t", s.Name, s)
-		//		}
-		//		for _, s := range p.Interfaces {
-		//			logger.Println("\t\t", s.Name, s)
-		//		}
-		//	}
-		//}
-
-		for s, typeData := range ex.TypeMap {
-			if typeData.Interface != nil || typeData.Struct != nil {
-				fmt.Println(s)
-				fmt.Println(typeData.Type, typeData.Interface != nil, typeData.Struct != nil)
-				fmt.Println()
+		for _, module := range ex.ModuleMap {
+			logger.Println(module.Name, module.Path)
+			for _, p := range module.Packages {
+				logger.Println("\t", p.Name, p.ImportPath, p.Path)
+				for s := range p.Files {
+					logger.Println("\t\t", s)
+				}
+				for _, s := range p.Structs {
+					logger.Println("\t\t", s.Name, s)
+				}
+				for _, s := range p.Interfaces {
+					logger.Println("\t\t", s.Name, s)
+				}
 			}
 		}
+
+		//for s, typeData := range ex.TypeMap {
+		//	fmt.Println(s)
+		//	fmt.Println(typeData.Type, typeData.Interface != nil, typeData.Struct != nil)
+		//	fmt.Println()
+		//	if typeData.Interface != nil || typeData.Struct != nil {
+		//	}
+		//}
 
 	},
 }
