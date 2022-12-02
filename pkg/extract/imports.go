@@ -16,14 +16,13 @@ func ImportStringForPackage(file *ast.File, pkg string) string {
 			}
 		} else {
 			path := strings.Split(pathString, "/")
-			if len(path) == 1 {
-				if pathString == pkg {
-					return pathString
-				}
-			} else {
-				if path[len(path)-1] == pkg {
-					return pathString
-				}
+			switch {
+			case len(path) == 1 && pathString == pkg:
+				return pathString
+			case len(path) > 1 && path[len(path)-1] == pkg:
+				return pathString
+			case len(path) > 1 && path[len(path)-2] == pkg && strings.HasPrefix(path[len(path)-1], "v"):
+				return pathString
 			}
 		}
 	}

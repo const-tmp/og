@@ -53,7 +53,7 @@ func TestPath(t *testing.T) {
 	require.NoError(t, err)
 	t.Log(path)
 
-	path, err = extract.SearchFileDown("go.mod")
+	path, err = extract.SearchFile("go.mod")
 	require.NoError(t, err)
 	t.Log(path)
 

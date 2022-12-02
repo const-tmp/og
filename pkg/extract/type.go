@@ -3,9 +3,11 @@ package extract
 import (
 	"fmt"
 	"github.com/nullc4t/og/internal/types"
+	"github.com/spf13/viper"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"log"
 	"path/filepath"
 	"strings"
 )
@@ -196,4 +198,206 @@ func GoSourceFilesFromPackage(pkgPath string) ([]string, error) {
 		files = append(files, goFile)
 	}
 	return files, nil
+}
+
+func ImportedTypesRecursive(file *types.GoFile, ifaces []*types.Interface, structs []*types.Struct, depth int) ([]*types.Interface, []*types.Struct, error) {
+	if depth <= 0 {
+		return nil, nil, nil
+	}
+
+	types2Find := make(types.TypeMap)
+
+	for _, iface := range ifaces {
+		for _, method := range iface.Methods {
+			for _, arg := range method.Args {
+				if !arg.Type.IsBuiltin() {
+					types2Find.Add(arg.Type)
+				}
+			}
+			for _, arg := range method.Results.Args {
+				if !arg.Type.IsBuiltin() {
+					types2Find.Add(arg.Type)
+				}
+			}
+		}
+	}
+
+	for _, str := range structs {
+		for _, field := range str.Fields {
+			if !field.Type.IsBuiltin() {
+				types2Find.Add(field.Type)
+			}
+		}
+	}
+
+typeLoop:
+	for _, data := range types2Find {
+		for _, s := range viper.GetStringSlice("exclude_types") {
+			if data.Type.String() == s {
+				continue typeLoop
+			}
+		}
+
+		i, s, err := TypeFromPackage(file, data.Type.Package(), data.Type.Name(), depth)
+		if err != nil {
+			fmt.Printf("recursive find type %s error: %s\n", data.Type, err.Error())
+		}
+		ifaces = append(ifaces, i...)
+		structs = append(structs, s...)
+	}
+
+	return ifaces, structs, nil
+}
+
+func TypeFromPackage(file *types.GoFile, pkgName string, name string, depth int) ([]*types.Interface, []*types.Struct, error) {
+	if depth == 0 {
+		return nil, nil, nil
+	}
+	fmt.Println("recursive find types for ", file.FilePath)
+	var (
+		packagePath string
+		err         error
+	)
+	if pkgName == "" || pkgName == file.Package {
+		packagePath, err = SourcePath4Package(file.Module, file.ModulePath, file.ImportPath(), file.FilePath)
+	} else {
+
+		packagePath, err = SourcePath4Package(file.Module, file.ModulePath, ImportStringForPackage(file.AST, pkgName), file.FilePath)
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+
+	goFiles, err := GoSourceFilesFromPackage(packagePath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	fmt.Println(packagePath, "go files:", file.FilePath)
+
+	for _, goFile := range goFiles {
+		ifaces, structs, err := ParseFile(goFile, name, depth)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		for _, iface := range ifaces {
+			if iface.Name == name {
+				return []*types.Interface{iface}, nil, nil
+			}
+		}
+
+		for _, str := range structs {
+			if str.Name == name {
+				return nil, []*types.Struct{str}, nil
+			}
+		}
+	}
+
+	return nil, nil, nil
+}
+
+func ParseFile(path string, query string, depth int) ([]*types.Interface, []*types.Struct, error) {
+	fmt.Println("parsing file ", path)
+	f, err := GoFile(path)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ifaces, structs, err := TypeDefs(f, query, depth)
+	if err != nil {
+		fmt.Println(path, " parse file error:", err)
+		return nil, nil, err
+	}
+
+	fmt.Println(path, "parsed")
+	return ifaces, structs, nil
+}
+
+func TypeDefs(file *types.GoFile, name string, depth int) ([]*types.Interface, []*types.Struct, error) {
+	fmt.Println("getting type defs in ", file.FilePath)
+	var (
+		ifaces  []*types.Interface
+		structs []*types.Struct
+	)
+
+	for _, decl := range file.AST.Decls {
+		genDecl, ok := decl.(*ast.GenDecl)
+		if !ok {
+			continue
+		}
+		if genDecl.Tok != token.TYPE {
+			continue
+		}
+		for _, spec := range genDecl.Specs {
+			typeSpec, ok := spec.(*ast.TypeSpec)
+			if !ok {
+				continue
+			}
+
+			if i := InterfaceFromTypeSpec(file.AST, typeSpec); i != nil {
+				if name != "" && name == i.Name {
+					ifaces = append(ifaces, i)
+					break
+				}
+				ifaces = append(ifaces, i)
+			}
+
+			if s := StructFromTypeSpec(file.AST, typeSpec); s != nil {
+				if name != "" && name == s.Name {
+					structs = append(structs, s)
+					break
+				}
+				structs = append(structs, s)
+			}
+		}
+	}
+	i, s, err := ImportedTypesRecursive(file, ifaces, structs, depth)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ifaces = append(ifaces, i...)
+	structs = append(structs, s...)
+
+	fmt.Println("type defs ", file.FilePath, " done")
+	return ifaces, structs, nil
+}
+
+func GoFile(path string) (*types.GoFile, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("file abs path error: %w", err)
+	}
+
+	goMod, err := SearchFileUp("go.mod", filepath.Dir(absPath), types.SearchUpDirLimit)
+	if err != nil {
+		return nil, err
+	}
+
+	absModulePath, err := filepath.Abs(filepath.Dir(goMod))
+	if err != nil {
+		return nil, fmt.Errorf("file abs path error: %w", err)
+	}
+
+	module, err := ModuleNameFromGoMod(goMod)
+	if err != nil {
+		return nil, err
+	}
+
+	fset := token.NewFileSet()
+
+	file, err := parser.ParseFile(fset, absPath, nil, parser.ParseComments)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return &types.GoFile{
+		FilePath:   absPath,
+		Package:    file.Name.Name,
+		Module:     module,
+		ModulePath: absModulePath,
+		FSet:       fset,
+		AST:        file,
+	}, nil
 }

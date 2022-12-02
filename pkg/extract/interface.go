@@ -8,10 +8,12 @@ import (
 	"go/token"
 )
 
-type Interfaces interface {
+type // Interfaces exported type TODO: edit
+Interfaces interface {
 	Extract() []types.Interface
 }
 
+// InterfacesFromASTFile extract from *ast.File
 func InterfacesFromASTFile(file *ast.File) []types.Interface {
 	var ifaces []types.Interface
 
@@ -38,6 +40,7 @@ func InterfacesFromASTFile(file *ast.File) []types.Interface {
 	return ifaces
 }
 
+// InterfaceFromTypeSpec extract interface from *ast.TypeSpec
 func InterfaceFromTypeSpec(file *ast.File, typeSpec *ast.TypeSpec) *types.Interface {
 	iface, ok := typeSpec.Type.(*ast.InterfaceType)
 	if !ok {

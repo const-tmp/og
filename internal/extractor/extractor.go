@@ -226,14 +226,16 @@ func (e Extractor) RecursiveParsePackage(file *types.GoFile, pkgName string, nam
 		if err != nil {
 			return nil, nil, err
 		}
+
 		for _, iface := range ifaces {
 			if iface.Name == name {
-				return ifaces, structs, nil
+				return []*types.Interface{iface}, nil, nil
 			}
 		}
+
 		for _, str := range structs {
 			if str.Name == name {
-				return ifaces, structs, nil
+				return nil, []*types.Struct{str}, nil
 			}
 		}
 	}

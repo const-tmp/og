@@ -7,13 +7,21 @@ import (
 	"log"
 )
 
+// ArgsFromFields extract types.Args from *ast.FieldList
 func ArgsFromFields(file *ast.File, fields *ast.FieldList) types.Args {
+	if fields == nil || fields.List == nil {
+		return nil
+	}
+
 	var args []*types.Arg
 
 	for _, arg := range fields.List {
 		var t types.Type
 
 		t = TypeFromExpr(file, arg.Type)
+		if t == nil {
+			continue
+		}
 
 		if len(arg.Names) == 0 {
 			args = append(args, &types.Arg{Type: t})
@@ -32,7 +40,7 @@ func TypeFromExpr(file *ast.File, field ast.Expr) types.Type {
 
 	switch v := field.(type) {
 	case *ast.Ident:
-		t = TypeFromIdent(v)
+		t = TypeFromIdent(file, v)
 	case *ast.SelectorExpr:
 		t = TypeFromSelectorExpr(file, v)
 	case *ast.ArrayType:
@@ -45,6 +53,16 @@ func TypeFromExpr(file *ast.File, field ast.Expr) types.Type {
 		t = TypeFromMapType(file, v)
 	case *ast.IndexExpr:
 		fmt.Println("ast.IndexExpr type is not implemented")
+	case *ast.InterfaceType:
+		t = types.NewType("interface{}", "", "")
+		t.SetIsInterface()
+	case *ast.FuncType:
+		fmt.Println("ast.FuncType cannot be used in transport")
+		return nil
+	case *ast.ChanType:
+		fmt.Println("ast.ChanType cannot be used in transport")
+		return nil
+
 	default:
 		log.Fatalf("[ BUG ] unknown ast.Expr: %T file: %s", v, file.Name.Name)
 	}
@@ -52,8 +70,14 @@ func TypeFromExpr(file *ast.File, field ast.Expr) types.Type {
 	return t
 }
 
-func TypeFromIdent(id *ast.Ident) types.Type {
-	return types.NewType(id.Name, "", "")
+func TypeFromIdent(file *ast.File, id *ast.Ident) types.Type {
+	if types.IsBuiltIn(id.Name) {
+		return types.NewType(id.Name, "", "")
+	}
+	if ImportStringForPackage(file, file.Name.Name) == "" {
+		fmt.Println(id.Name, file.Name.Name, "empty import")
+	}
+	return types.NewType(id.Name, file.Name.Name, ImportStringForPackage(file, file.Name.Name))
 }
 
 func TypeFromSelectorExpr(file *ast.File, se *ast.SelectorExpr) types.Type {
@@ -74,7 +98,7 @@ func TypeFromStarExpr(file *ast.File, se *ast.StarExpr) types.Type {
 
 	switch x := se.X.(type) {
 	case *ast.Ident:
-		t = TypeFromIdent(x)
+		t = TypeFromIdent(file, x)
 	case *ast.SelectorExpr:
 		t = TypeFromSelectorExpr(file, x)
 	case *ast.ArrayType:
@@ -91,11 +115,14 @@ func TypeFromEllipsis(file *ast.File, el *ast.Ellipsis) types.Type {
 
 	switch x := el.Elt.(type) {
 	case *ast.Ident:
-		t = TypeFromIdent(x)
+		t = TypeFromIdent(file, x)
 	case *ast.SelectorExpr:
 		t = TypeFromSelectorExpr(file, x)
 	case *ast.ArrayType:
 		t = TypeFromArrayType(file, x)
+	case *ast.InterfaceType:
+		t = types.NewType("interface{}", "", "")
+		t.SetIsInterface()
 	default:
 		log.Fatalf("[ TODO ] unknown ast.Ellipsis.Elt: %T", x)
 	}
@@ -108,11 +135,19 @@ func TypeFromArrayType(file *ast.File, at *ast.ArrayType) types.Type {
 
 	switch elt := at.Elt.(type) {
 	case *ast.Ident:
-		t = TypeFromIdent(elt)
+		t = TypeFromIdent(file, elt)
 	case *ast.SelectorExpr:
 		t = TypeFromSelectorExpr(file, elt)
 	case *ast.StarExpr:
 		t = TypeFromStarExpr(file, elt)
+	case *ast.InterfaceType:
+		t = types.NewType("interface{}", "", "")
+		t.SetIsInterface()
+	case *ast.FuncType:
+		fmt.Println("ast.FuncType cannot be used in transport")
+		return nil
+	case *ast.ArrayType:
+		return TypeFromArrayType(file, elt)
 	default:
 		log.Fatalf("[ TODO ] unknown ast.ArrayType.Elt: %T", elt)
 	}
@@ -123,5 +158,8 @@ func TypeFromArrayType(file *ast.File, at *ast.ArrayType) types.Type {
 func TypeFromMapType(file *ast.File, mt *ast.MapType) types.Type {
 	kType := TypeFromExpr(file, mt.Key)
 	vType := TypeFromExpr(file, mt.Value)
+	if kType == nil || vType == nil {
+		return nil
+	}
 	return types.NewMapType(kType, vType)
 }
