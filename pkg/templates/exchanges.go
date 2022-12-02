@@ -9,7 +9,7 @@ type (
 // {{ .StructName }} is an exchange struct
 {{ .StructName }} struct {
 {{- range .Fields }}
-{{ .Name }} {{ .Type.String }}
+{{ .Name }} {{ .Type.String }} {{ .Name | camel2snake | jsonTag }}
 {{- else -}}
 {{- end -}}
 }

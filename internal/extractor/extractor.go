@@ -157,10 +157,11 @@ func (e Extractor) findAndParseImportedTypes(file *types.GoFile, ifaces []*types
 		}
 	}
 
+typeLoop:
 	for _, data := range types2Find {
 		for _, s := range viper.GetStringSlice("exclude_types") {
 			if data.Type.String() == s {
-				continue
+				continue typeLoop
 			}
 		}
 
@@ -198,13 +199,15 @@ func (e Extractor) RecursiveParsePackage(file *types.GoFile, pkgName string, nam
 	if depth == 0 {
 		return nil, nil, nil
 	}
+	fmt.Println("recursive find types for ", file.FilePath)
 	var (
 		packagePath string
 		err         error
 	)
-	if pkgName == "" {
+	if pkgName == "" || pkgName == file.Package {
 		packagePath, err = extract.SourcePath4Package(file.Module, file.ModulePath, file.ImportPath(), file.FilePath)
 	} else {
+
 		packagePath, err = extract.SourcePath4Package(file.Module, file.ModulePath, extract.ImportStringForPackage(file.AST, pkgName), file.FilePath)
 	}
 	if err != nil {

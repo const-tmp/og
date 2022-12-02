@@ -32,6 +32,7 @@ var (
 		"plus":                      Plus,
 		"camel2snake":               names.Camel2Snake,
 		"pbtype":                    transform.Go2ProtobufType,
+		"jsonTag":                   JSONTag,
 	}
 )
 
@@ -142,6 +143,10 @@ func MapSlice2Slice(sm []map[string]any, key string) []any {
 
 func Plus(i, n int) int {
 	return i + n
+}
+
+func JSONTag(s string) string {
+	return fmt.Sprintf("`json:\"%s,omitempty\"`", s)
 }
 
 //func ToProtobufType(s string) (string, error) {

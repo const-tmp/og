@@ -1,0 +1,32 @@
+package templates
+
+import (
+	"context"
+	"errors"
+)
+
+{{ range .Exchanges }}
+func Encode{{ .Name }}(ctx context.Context, request interface{}) (interface{}, error) {
+	if request == nil {
+		return nil, errors.New("nil {{ .Name }}")
+	}
+	req := request.(*endpoints.{{ .Name }})
+	return &proto.{{ .Name }}{
+		{{- range .Fields }}
+		{{ .Name }}: req.{{ .Name }},
+		{{ end -}}
+	}, nil
+}
+
+func Decode{{ .Name }}(ctx context.Context, request interface{}) (interface{}, error) {
+	if request == nil {
+		return nil, errors.New("nil {{ .Name }}")
+	}
+	req := request.(*proto.{{ .Name }})
+	return &endpoints.{{ .Name }}{
+		{{- range .Fields }}
+		{{ .Name }}: req.{{ .Name }},
+		{{ end -}}
+	}, nil
+}
+{{ end }}
