@@ -8,7 +8,7 @@ import (
 
 func TestExtractor(t *testing.T) {
 	ex := NewExtractor()
-	err := ex.ParseFile("extractor_test.go")
+	_, _, err := ex.ParseFile("extractor_test.go", "", 0)
 	require.NoError(t, err)
 	for _, module := range ex.ModuleMap {
 		t.Log(module.Name, module.Path)

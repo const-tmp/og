@@ -49,17 +49,21 @@ func RenameExchangeStruct(exchangeStruct types.ExchangeStruct) types.ExchangeStr
 }
 
 func RenameArg(arg *types.Arg) {
-	if arg.Name == "" {
+	switch arg.Name {
+	case "":
 		switch arg.Type.Name() {
 		case "error":
 			arg.Name = "Error"
-		case "arg":
-			arg.Name = "Ctx"
+		case "Context":
+			arg.Name = "Context"
 		default:
 			arg.Name = names.GetExportedName(arg.Type.Name())
 		}
+	case "err", "Err", "Error", "error":
+		arg.Name = "Error"
+	default:
+		arg.Name = names.GetExportedName(arg.Name)
 	}
-	arg.Name = names.GetExportedName(arg.Name)
 }
 
 func RenameArgsInInterface(iface types.Interface) {

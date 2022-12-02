@@ -8,10 +8,12 @@ import (
 	"github.com/nullc4t/og/internal/extractor"
 	"github.com/nullc4t/og/internal/types"
 	"github.com/nullc4t/og/pkg/generator"
+	"github.com/nullc4t/og/pkg/names"
 	"github.com/nullc4t/og/pkg/templates"
 	"github.com/nullc4t/og/pkg/transform"
 	"github.com/nullc4t/og/pkg/writer"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -20,7 +22,7 @@ import (
 // protoCmd represents the proto command
 var protoCmd = &cobra.Command{
 	Use:   "proto",
-	Short: "A brief description of your command",
+	Short: "generate .proto file",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
@@ -30,13 +32,22 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("proto called")
 
-		sourceFile, err := extractor.GoFile(args[0])
+		ifaceFile, err := extractor.GoFile(viper.GetString("interfaces_file"))
 		if err != nil {
 			logger.Fatal(err)
 		}
 
+		//exchFile, err := extractor.GoFile(viper.GetString("exchanges_file"))
+		//if err != nil {
+		//	logger.Fatal(err)
+		//}
+
 		ex := extractor.NewExtractor()
-		err = ex.ParseFile(args[0], "", 2)
+		ii, is, err := ex.ParseFile(viper.GetString("interfaces_file"), "", 0)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		ei, es, err := ex.ParseFile(viper.GetString("exchanges_file"), "", 1)
 		if err != nil {
 			logger.Fatal(err)
 		}
@@ -46,36 +57,75 @@ to quickly create a Cobra application.`,
 		protoPkg := "proto"
 		var protoFile = types.ProtoFile{
 			GoPackage:     protoPkg,
-			GoPackagePath: fmt.Sprintf("%s/%s", sourceFile.ImportPath(), protoPkg),
+			GoPackagePath: fmt.Sprintf("%s/%s", ifaceFile.ImportPath(), protoPkg),
 			Package:       "service",
 		}
 
-		for _, iface := range ex.ModuleMap[sourceFile.Module].Packages[sourceFile.Package].Interfaces {
-			protoService := transform.Interface2ProtoService(*iface)
-			protoFile.Services = append(protoFile.Services, protoService)
-			for _, rpc := range protoService.Fields {
-				protoFile.Messages = append(protoFile.Messages, rpc.Request, rpc.Response)
+		protoImports := make(map[string]struct{})
+
+		iMap := make(map[string]*types.Interface)
+		for _, iface := range ii {
+			if v, ok := iMap[iface.Name]; !ok {
+				iMap[iface.Name] = iface
+			} else {
+				logger.Println("name conflict:", iface.Name, v.Name)
 			}
 		}
 
-		for _, module := range ex.ModuleMap {
-			for _, p := range module.Packages {
-				for _, s := range p.Structs {
-					protoFile.Messages = append(protoFile.Messages, transform.Struct2ProtoMessage(*s))
-					logger.Println(s.Name)
-					protoFile.Messages = append(protoFile.Messages, types.ProtoMessage{
-						Name:   s.Name,
-						Fields: transform.Fields2ProtoFields(s.Fields),
-					})
+		sMap := make(map[string]*types.Struct)
+		for _, s := range append(is, es...) {
+			if _, ok := sMap[s.Name]; !ok {
+				sMap[s.Name] = s
+			}
+			//} else {
+			//	logger.Println("name conflict:", s.Name, v.Name)
+			//}
+		}
+
+		em := make(map[string]struct{})
+		for _, iface := range ei {
+			if _, ok := em[iface.Name]; ok {
+				continue
+			}
+			protoFile.Messages = append(protoFile.Messages, types.ProtoMessage{
+				Name: iface.Name,
+				Fields: []types.ProtoField{
+					{
+						Name:  names.Camel2Snake(iface.Name),
+						OneOf: true,
+					},
+				},
+			})
+			em[iface.Name] = struct{}{}
+		}
+
+		for _, iface := range iMap {
+			protoService := transform.Interface2ProtoService(*iface)
+			protoFile.Services = append(protoFile.Services, protoService)
+		}
+
+		for _, str := range sMap {
+			msg := transform.Struct2ProtoMessage(*str)
+			protoFile.Messages = append(protoFile.Messages, msg)
+			for _, field := range msg.Fields {
+				switch field.Type {
+				case "google.protobuf.Timestamp":
+					protoImports["google/protobuf/timestamp.proto"] = struct{}{}
+				case "google.protobuf.Any":
+					protoImports["google/protobuf/any.proto"] = struct{}{}
 				}
 			}
 		}
 
+		for imp, _ := range protoImports {
+			protoFile.Imports = append(protoFile.Imports, types.ProtoImport{Path: imp})
+		}
+
 		unit := generator.NewUnit(
-			sourceFile, tmpl, protoFile, nil, nil,
+			ifaceFile, tmpl, protoFile, nil, nil,
 			filepath.Join(
-				filepath.Join(filepath.Dir(args[0]), "proto"),
-				filepath.Base(strings.Replace(args[0], ".go", ".proto", 1)),
+				filepath.Join(filepath.Dir(viper.GetString("interfaces_file")), "proto"),
+				filepath.Base(strings.Replace(viper.GetString("interfaces_file"), ".go", ".proto", 1)),
 			), writer.File,
 		)
 		err = unit.Generate()
@@ -101,4 +151,16 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// protoCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
+	protoCmd.Flags().StringP("exchanges_file", "e", "", "go file with *Request/Response")
+	_ = protoCmd.MarkFlagRequired("exchanges_file")
+	_ = viper.BindPFlag("exchanges_file", protoCmd.Flag("exchanges_file"))
+
+	protoCmd.Flags().StringP("interfaces_file", "i", "", "go file with interface(s)")
+	_ = protoCmd.MarkFlagRequired("interfaces_file")
+	_ = viper.BindPFlag("interfaces_file", protoCmd.Flag("interfaces_file"))
+
+	protoCmd.Flags().StringSliceP("exclude_types", "x", nil, "exclude types from parsing")
+	_ = viper.BindPFlag("exclude_types", protoCmd.Flag("exclude_types"))
+
 }

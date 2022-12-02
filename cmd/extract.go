@@ -23,7 +23,7 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("extract called")
 		ex := extractor.NewExtractor()
-		err := ex.ParseFile(args[0], "", 2)
+		_, _, err := ex.ParseFile(args[0], "", 2)
 		if err != nil {
 			logger.Fatal(err)
 		}

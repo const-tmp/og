@@ -48,6 +48,12 @@ func SplitCamelCase(s string) []string {
 }
 
 func Camel2Snake(s string) string {
+	if s == "Err" {
+		return "error"
+	}
+	if s == "err" {
+		return "error"
+	}
 	var tmp []string
 	for _, word := range SplitCamelCase(s) {
 		tmp = append(tmp, strings.ToLower(word))

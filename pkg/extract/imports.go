@@ -1,6 +1,7 @@
 package extract
 
 import (
+	"fmt"
 	"go/ast"
 	"strings"
 )
@@ -26,6 +27,8 @@ func ImportStringForPackage(file *ast.File, pkg string) string {
 			}
 		}
 	}
+
+	fmt.Println("import string not found; file:", file.Name.Name, "package:", pkg)
 
 	return ""
 }

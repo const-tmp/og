@@ -5,6 +5,9 @@ var Proto2 = `syntax = "proto3";
 option go_package = "{{ .GoPackagePath }};{{ .GoPackage }}";
 
 package {{ .Package }};
+{{ range .Imports }}
+import "{{ .Path }}";
+{{- end }}
 {{ range .Services }}
 // The {{ .Name }} service definition.
 service {{ .Name }} {

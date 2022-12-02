@@ -6,12 +6,12 @@ import (
 	"github.com/nullc4t/og/pkg/extract"
 	"github.com/nullc4t/og/pkg/transform"
 	"github.com/nullc4t/og/pkg/utils"
+	"github.com/spf13/viper"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"log"
 	"path/filepath"
-	"strings"
 )
 
 type (
@@ -30,47 +30,53 @@ func NewExtractor() *Extractor {
 	return &Extractor{ModuleMap: make(types.ModuleMap), TypeMap: make(types.TypeMap), fset: token.NewFileSet()}
 }
 
-func (e Extractor) ParseFile(path string, query string, depth int) error {
+func (e Extractor) ParseFile(path string, query string, depth int) ([]*types.Interface, []*types.Struct, error) {
 	fmt.Println("parsing file ", path)
 	f, err := GoFile(path)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
-	err = e.ModuleMap.Add(f)
-	//if err != nil {
-	//	return err
-	//}
+	_ = e.ModuleMap.Add(f)
 
 	ifaces, structs, err := e.TypeDefs(f, query, depth)
 	if err != nil {
 		fmt.Println(path, " parse file error:", err)
-		return err
+		return nil, nil, err
 	}
 
-	for _, iface := range ifaces {
-		if query != "" {
-			if iface.Name == query {
-				e.ModuleMap[f.Module].Packages[f.Package].Interfaces[iface.Name] = iface
-				return nil
-			}
-		} else {
-			e.ModuleMap[f.Module].Packages[f.Package].Interfaces[iface.Name] = iface
-		}
-	}
-	for _, str := range structs {
-		if query != "" {
-			if str.Name == query {
-				e.ModuleMap[f.Module].Packages[f.Package].Structs[str.Name] = str
-				return nil
-			}
-		} else {
-			e.ModuleMap[f.Module].Packages[f.Package].Structs[str.Name] = str
-		}
+	if query != "" {
+		e.findAndAddTypeByName(f, ifaces, structs, query)
+	} else {
+		e.addTypeDefsToMapping(f, ifaces, structs)
 	}
 
 	fmt.Println(path, "parsed")
-	return nil
+	return ifaces, structs, nil
+}
+
+func (e Extractor) addTypeDefsToMapping(f *types.GoFile, ifaces []*types.Interface, structs []*types.Struct) {
+	for _, iface := range ifaces {
+		e.ModuleMap[f.Module].Packages[f.Package].Interfaces[iface.Name] = iface
+	}
+	for _, str := range structs {
+		e.ModuleMap[f.Module].Packages[f.Package].Structs[str.Name] = str
+	}
+}
+
+func (e Extractor) findAndAddTypeByName(f *types.GoFile, ifaces []*types.Interface, structs []*types.Struct, name string) {
+	for _, iface := range ifaces {
+		if iface.Name == name {
+			e.ModuleMap[f.Module].Packages[f.Package].Interfaces[iface.Name] = iface
+			return
+		}
+	}
+	for _, str := range structs {
+		if str.Name == name {
+			e.ModuleMap[f.Module].Packages[f.Package].Structs[str.Name] = str
+			return
+		}
+	}
 }
 
 func (e Extractor) TypeDefs(file *types.GoFile, name string, depth int) ([]*types.Interface, []*types.Struct, error) {
@@ -96,62 +102,76 @@ func (e Extractor) TypeDefs(file *types.GoFile, name string, depth int) ([]*type
 
 			if i := e.InterfaceFromTypeSpec(file.AST, typeSpec); i != nil {
 				if name != "" && name == i.Name {
-					return []*types.Interface{i}, nil, nil
+					ifaces = append(ifaces, i)
+					break
 				}
 				ifaces = append(ifaces, i)
 			}
 
 			if s := e.StructFromTypeSpec(file.AST, typeSpec); s != nil {
 				if name != "" && name == s.Name {
-					return nil, []*types.Struct{s}, nil
+					structs = append(structs, s)
+					break
 				}
 				structs = append(structs, s)
 			}
 		}
 	}
-
-	// map parsed types
-TypeLoop:
-	for _, data := range e.TypeMap {
-		for _, iface := range ifaces {
-			if iface.Name == data.Type.Name() && strings.Contains(data.Type.ImportPath(), file.Module) {
-				data.Interface = iface
-				e.TypeMap.Set(data.Type, data)
-				continue TypeLoop
-			}
-		}
-		for _, str := range structs {
-			if str.Name == data.Type.Name() && strings.Contains(data.Type.ImportPath(), file.Module) {
-				data.Struct = str
-				e.TypeMap.Set(data.Type, data)
-				continue TypeLoop
-			}
-		}
+	i, s, err := e.findAndParseImportedTypes(file, ifaces, structs, depth)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	for _, str := range structs {
-		for _, field := range str.Fields {
-			if field.Type == nil {
-				fmt.Println("NULL TYPE:", str.Name, field.Name, file.FilePath)
-			}
-			_ = e.checkAndParseType(file, field.Type, field.Type.Name(), depth)
-		}
+	ifaces = append(ifaces, i...)
+	structs = append(structs, s...)
+
+	fmt.Println("type defs ", file.FilePath, " done")
+	return ifaces, structs, nil
+}
+
+func (e Extractor) findAndParseImportedTypes(file *types.GoFile, ifaces []*types.Interface, structs []*types.Struct, depth int) ([]*types.Interface, []*types.Struct, error) {
+	if depth <= 0 {
+		return nil, nil, nil
 	}
+
+	types2Find := make(types.TypeMap)
 	for _, iface := range ifaces {
 		for _, method := range iface.Methods {
 			for _, arg := range method.Args {
-				if arg.Type == nil {
-					utils.BugPanic(fmt.Sprint(method.Name, arg.Name, "null Type"))
+				if !arg.Type.IsBuiltin() {
+					types2Find.Add(arg.Type)
 				}
-				_ = e.checkAndParseType(file, arg.Type, arg.Type.Name(), depth)
 			}
 			for _, arg := range method.Results.Args {
-				_ = e.checkAndParseType(file, arg.Type, arg.Type.Name(), depth)
+				if !arg.Type.IsBuiltin() {
+					types2Find.Add(arg.Type)
+				}
+			}
+		}
+	}
+	for _, str := range structs {
+		for _, field := range str.Fields {
+			if !field.Type.IsBuiltin() {
+				types2Find.Add(field.Type)
 			}
 		}
 	}
 
-	fmt.Println("type defs ", file.FilePath, " done")
+	for _, data := range types2Find {
+		for _, s := range viper.GetStringSlice("exclude_types") {
+			if data.Type.String() == s {
+				continue
+			}
+		}
+
+		i, s, err := e.RecursiveParsePackage(file, data.Type.Package(), data.Type.Name(), depth)
+		if err != nil {
+			fmt.Printf("recursive find type %s error: %s\n", data.Type, err.Error())
+		}
+		ifaces = append(ifaces, i...)
+		structs = append(structs, s...)
+	}
+
 	return ifaces, structs, nil
 }
 
@@ -164,40 +184,58 @@ func (e Extractor) checkIsTypeParsed(ty types.Type) bool {
 	return false
 }
 
-func (e Extractor) checkAndParseType(file *types.GoFile, t types.Type, name string, depth int) error {
-	if !t.IsImported() {
-		return nil
+func (e Extractor) checkAndParseType(file *types.GoFile, t types.Type, name string, depth int) ([]*types.Interface, []*types.Struct, error) {
+	if t.IsBuiltin() {
+		return nil, nil, nil
 	}
 	if e.checkIsTypeParsed(t) {
-		return nil
+		return nil, nil, nil
 	}
-	return e.recursiveParsePackage(file, t.Package(), name, depth-1)
+	return e.RecursiveParsePackage(file, t.Package(), name, depth-1)
 }
 
-func (e Extractor) recursiveParsePackage(file *types.GoFile, pkgName string, name string, depth int) error {
+func (e Extractor) RecursiveParsePackage(file *types.GoFile, pkgName string, name string, depth int) ([]*types.Interface, []*types.Struct, error) {
 	if depth == 0 {
-		return nil
+		return nil, nil, nil
 	}
-	packagePath, err := extract.SourcePath4Package(file.Module, file.ModulePath, extract.ImportStringForPackage(file.AST, pkgName), file.FilePath)
+	var (
+		packagePath string
+		err         error
+	)
+	if pkgName == "" {
+		packagePath, err = extract.SourcePath4Package(file.Module, file.ModulePath, file.ImportPath(), file.FilePath)
+	} else {
+		packagePath, err = extract.SourcePath4Package(file.Module, file.ModulePath, extract.ImportStringForPackage(file.AST, pkgName), file.FilePath)
+	}
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	goFiles, err := extract.GoSourceFilesFromPackage(packagePath)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	fmt.Println(packagePath, "go files:", file.FilePath)
 
 	for _, goFile := range goFiles {
-		err = e.ParseFile(goFile, name, depth)
+		ifaces, structs, err := e.ParseFile(goFile, name, depth)
 		if err != nil {
-			return err
+			return nil, nil, err
+		}
+		for _, iface := range ifaces {
+			if iface.Name == name {
+				return ifaces, structs, nil
+			}
+		}
+		for _, str := range structs {
+			if str.Name == name {
+				return ifaces, structs, nil
+			}
 		}
 	}
 
-	return nil
+	return nil, nil, nil
 }
 
 func (e Extractor) InterfaceFromTypeSpec(file *ast.File, typeSpec *ast.TypeSpec) *types.Interface {
@@ -252,14 +290,7 @@ func (e Extractor) ArgsFromFields(file *ast.File, fields *ast.FieldList) types.A
 	var args []*types.Arg
 
 	for _, arg := range fields.List {
-		var (
-			names []string
-			t     types.Type
-		)
-
-		for _, name := range arg.Names {
-			names = append(names, name.Name)
-		}
+		var t types.Type
 
 		t = e.TypeFromExpr(file, arg.Type)
 		if t == nil {
@@ -271,8 +302,8 @@ func (e Extractor) ArgsFromFields(file *ast.File, fields *ast.FieldList) types.A
 		if len(arg.Names) == 0 {
 			args = append(args, &types.Arg{Type: t})
 		} else {
-			for _, name := range names {
-				args = append(args, &types.Arg{Name: name, Type: t})
+			for _, name := range arg.Names {
+				args = append(args, &types.Arg{Name: name.Name, Type: t})
 			}
 		}
 	}
@@ -402,6 +433,12 @@ func (e Extractor) TypeFromExpr(file *ast.File, field ast.Expr) types.Type {
 }
 
 func (e Extractor) TypeFromIdent(file *ast.File, id *ast.Ident) types.Type {
+	if types.IsBuiltIn(id.Name) {
+		return types.NewType(id.Name, "", "")
+	}
+	if extract.ImportStringForPackage(file, file.Name.Name) == "" {
+		fmt.Println(id.Name, "empty import")
+	}
 	return types.NewType(id.Name, file.Name.Name, extract.ImportStringForPackage(file, file.Name.Name))
 }
 

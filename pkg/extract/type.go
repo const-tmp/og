@@ -49,14 +49,14 @@ func DepPackagePathFromModule(moduleName, modulePath, pkg string) string {
 }
 
 // SourcePath4Package returns pkg source dir path;
-func SourcePath4Package(moduleName, modulePath, pkg, fileOrPackage string) (string, error) {
-	if strings.Contains(pkg, moduleName) {
-		return DepPackagePathFromModule(moduleName, modulePath, pkg), nil
-		//return strings.Replace(pkg, moduleName, modulePath, 1), nil
+func SourcePath4Package(moduleName, modulePath, pkgImportPath, fileOrPackage string) (string, error) {
+	if strings.Contains(pkgImportPath, moduleName) {
+		return DepPackagePathFromModule(moduleName, modulePath, pkgImportPath), nil
+		//return strings.Replace(pkgImportPath, moduleName, modulePath, 1), nil
 	}
 
-	if !strings.Contains(pkg, "/") {
-		return "", fmt.Errorf("%s is builtin package", pkg)
+	if !strings.Contains(pkgImportPath, "/") {
+		return "", fmt.Errorf("%s is builtin package", pkgImportPath)
 	}
 
 	goModData, err := GoMod(filepath.Dir(fileOrPackage))
@@ -69,12 +69,12 @@ func SourcePath4Package(moduleName, modulePath, pkg, fileOrPackage string) (stri
 		return "", err
 	}
 
-	dep := DependencyForPackage(pkg, deps)
+	dep := DependencyForPackage(pkgImportPath, deps)
 	if dep == nil {
-		return "", fmt.Errorf("dependency for %s not found", pkg)
+		return "", fmt.Errorf("dependency for %s not found", pkgImportPath)
 	}
 
-	return DepPackagePathFromModule(dep.Module, dep.Path, pkg), nil
+	return DepPackagePathFromModule(dep.Module, dep.Path, pkgImportPath), nil
 }
 
 // ImportedType find package with type t and return parsed struct/interface

@@ -20,6 +20,7 @@ func Args2ProtoFields(args types.Args) []types.ProtoField {
 		} else {
 			name = RenameEmpty(arg.Type)
 		}
+		fmt.Println(arg)
 		res = append(res, types.ProtoField{
 			Type:   Go2ProtobufType(arg.Type.String()),
 			Name:   names.Camel2Snake(name),
@@ -61,6 +62,7 @@ func Interface2ProtoService(iface types.Interface) types.ProtoService {
 	var proto = types.ProtoService{Name: iface.Name}
 
 	for _, method := range iface.Methods {
+		fmt.Println("converting ", method.Name)
 		proto.Fields = append(proto.Fields, types.ProtoRPC{
 			Name: method.Name,
 			Request: types.ProtoMessage{
@@ -81,7 +83,7 @@ func Struct2ProtoMessage(s types.Struct) types.ProtoMessage {
 	var fields []types.ProtoField
 	for i, field := range s.Fields {
 		fields = append(fields, types.ProtoField{
-			Type:   Go2ProtobufType(field.Type.Name()),
+			Type:   Go2ProtobufType(field.Type.String()),
 			Name:   names.Camel2Snake(field.Name),
 			Number: uint(i + 1),
 		})

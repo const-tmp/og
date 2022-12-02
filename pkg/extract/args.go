@@ -11,22 +11,15 @@ func ArgsFromFields(file *ast.File, fields *ast.FieldList) types.Args {
 	var args []*types.Arg
 
 	for _, arg := range fields.List {
-		var (
-			names []string
-			t     types.Type
-		)
-
-		for _, name := range arg.Names {
-			names = append(names, name.Name)
-		}
+		var t types.Type
 
 		t = TypeFromExpr(file, arg.Type)
 
 		if len(arg.Names) == 0 {
 			args = append(args, &types.Arg{Type: t})
 		} else {
-			for _, name := range names {
-				args = append(args, &types.Arg{Name: name, Type: t})
+			for _, name := range arg.Names {
+				args = append(args, &types.Arg{Name: name.Name, Type: t})
 			}
 		}
 	}

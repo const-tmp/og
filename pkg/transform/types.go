@@ -14,6 +14,9 @@ func Go2ProtobufType(s string) string {
 	s = strings.Replace(s, "*", "", 1)
 
 	if strings.Contains(s, "[]") {
+		if s == "[]byte" {
+			return "bytes"
+		}
 		s = strings.Replace(s, "[]", "", 1)
 		prefix = "repeated "
 	}
@@ -24,7 +27,9 @@ func Go2ProtobufType(s string) string {
 	}
 
 	switch s {
-	case "error", "Error":
+	case "bool":
+		protoType = "bool"
+	case "error":
 		protoType = "string"
 	case "int":
 		protoType = "int32"
@@ -51,7 +56,10 @@ func Go2ProtobufType(s string) string {
 	default:
 		if strings.Contains(s, ".") {
 			protoType = strings.Split(s, ".")[1]
+		} else {
+			protoType = s
 		}
 	}
+
 	return prefix + protoType
 }
