@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/nullc4t/og/internal/extractor"
 	"github.com/nullc4t/og/internal/types"
+	"github.com/nullc4t/og/pkg/extract"
 	"github.com/nullc4t/og/pkg/generator"
 	"github.com/nullc4t/og/pkg/names"
 	"github.com/nullc4t/og/pkg/templates"
@@ -32,27 +33,14 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("proto called")
 
+		tmpl := template.Must(template.New("").Funcs(templates.FuncMap).Parse(templates.Proto2))
+
 		ifaceFile, err := extractor.GoFile(viper.GetString("interfaces_file"))
 		if err != nil {
 			logger.Fatal(err)
 		}
 
-		//exchFile, err := extractor.GoFile(viper.GetString("exchanges_file"))
-		//if err != nil {
-		//	logger.Fatal(err)
-		//}
-
-		ex := extractor.NewExtractor()
-		ii, is, err := ex.ParseFile(viper.GetString("interfaces_file"), "", 0)
-		if err != nil {
-			logger.Fatal(err)
-		}
-		ei, es, err := ex.ParseFile(viper.GetString("exchanges_file"), "", 1)
-		if err != nil {
-			logger.Fatal(err)
-		}
-
-		tmpl := template.Must(template.New("").Funcs(templates.FuncMap).Parse(templates.Proto2))
+		services, _ := extract.TypesFromASTFile(ifaceFile.AST)
 
 		protoPkg := "proto"
 		var protoFile = types.ProtoFile{
@@ -61,32 +49,20 @@ to quickly create a Cobra application.`,
 			Package:       "service",
 		}
 
-		protoImports := make(map[string]struct{})
-
-		iMap := make(map[string]*types.Interface)
-		for _, iface := range ii {
-			if v, ok := iMap[iface.Name]; !ok {
-				iMap[iface.Name] = iface
-			} else {
-				logger.Println("name conflict:", iface.Name, v.Name)
-			}
+		for _, iface := range services {
+			protoFile.Services = append(protoFile.Services, transform.Interface2ProtoService(*iface))
 		}
 
-		sMap := make(map[string]*types.Struct)
-		for _, s := range append(is, es...) {
-			if _, ok := sMap[s.Name]; !ok {
-				sMap[s.Name] = s
-			}
-			//} else {
-			//	logger.Println("name conflict:", s.Name, v.Name)
-			//}
+		exchFile, err := extractor.GoFile(viper.GetString("exchanges_file"))
+		if err != nil {
+			logger.Fatal(err)
 		}
 
-		em := make(map[string]struct{})
-		for _, iface := range ei {
-			if _, ok := em[iface.Name]; ok {
-				continue
-			}
+		_, exchanges := extract.TypesFromASTFile(exchFile.AST)
+
+		depIfaces, depStructs, err := extract.ImportedTypesRecursive(exchFile, nil, exchanges, 2)
+
+		for _, iface := range depIfaces {
 			protoFile.Messages = append(protoFile.Messages, types.ProtoMessage{
 				Name: iface.Name,
 				Fields: []types.ProtoField{
@@ -96,15 +72,11 @@ to quickly create a Cobra application.`,
 					},
 				},
 			})
-			em[iface.Name] = struct{}{}
 		}
 
-		for _, iface := range iMap {
-			protoService := transform.Interface2ProtoService(*iface)
-			protoFile.Services = append(protoFile.Services, protoService)
-		}
+		protoImports := make(map[string]struct{})
 
-		for _, str := range sMap {
+		for _, str := range append(exchanges, depStructs...) {
 			msg := transform.Struct2ProtoMessage(*str)
 			protoFile.Messages = append(protoFile.Messages, msg)
 			for _, field := range msg.Fields {

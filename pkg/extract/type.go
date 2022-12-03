@@ -3,6 +3,7 @@ package extract
 import (
 	"fmt"
 	"github.com/nullc4t/og/internal/types"
+	"github.com/nullc4t/og/pkg/utils"
 	"github.com/spf13/viper"
 	"go/ast"
 	"go/parser"
@@ -12,10 +13,11 @@ import (
 	"strings"
 )
 
-func TypesFromASTFile(file *ast.File) ([]types.Interface, []types.Struct) {
+// TypesFromASTFile exported func TODO: edit
+func TypesFromASTFile(file *ast.File) ([]*types.Interface, []*types.Struct) {
 	var (
-		ifaces  []types.Interface
-		structs []types.Struct
+		ifaces  []*types.Interface
+		structs []*types.Struct
 	)
 
 	for _, decl := range file.Decls {
@@ -33,11 +35,11 @@ func TypesFromASTFile(file *ast.File) ([]types.Interface, []types.Struct) {
 			}
 
 			if i := InterfaceFromTypeSpec(file, typeSpec); i != nil {
-				ifaces = append(ifaces, *i)
+				ifaces = append(ifaces, i)
 			}
 
 			if s := StructFromTypeSpec(file, typeSpec); s != nil {
-				structs = append(structs, *s)
+				structs = append(structs, s)
 			}
 		}
 	}
@@ -54,7 +56,7 @@ func DepPackagePathFromModule(moduleName, modulePath, pkg string) string {
 func SourcePath4Package(moduleName, modulePath, pkgImportPath, fileOrPackage string) (string, error) {
 	if strings.Contains(pkgImportPath, moduleName) {
 		return DepPackagePathFromModule(moduleName, modulePath, pkgImportPath), nil
-		//return strings.Replace(pkgImportPath, moduleName, modulePath, 1), nil
+
 	}
 
 	if !strings.Contains(pkgImportPath, "/") {
@@ -79,100 +81,101 @@ func SourcePath4Package(moduleName, modulePath, pkgImportPath, fileOrPackage str
 	return DepPackagePathFromModule(dep.Module, dep.Path, pkgImportPath), nil
 }
 
-// ImportedType find package with type t and return parsed struct/interface
-func ImportedType(file *ast.File, filePath, moduleName, modulePath string, t types.Type) (*types.ExchangeStruct, error) {
-	typeImportPath := ImportStringForPackage(file, t.Package())
-
-	packagePath, err := SourcePath4Package(moduleName, modulePath, typeImportPath, filePath)
-	if err != nil {
-		return nil, err
-	}
-
-	goFiles, err := GoSourceFilesFromPackage(packagePath)
-	if err != nil {
-		return nil, err
-	}
-
-	var exchangeStruct *types.ExchangeStruct
-
-	for _, goFile := range goFiles {
-		fset := token.NewFileSet()
-		f, err := parser.ParseFile(fset, goFile, nil, parser.ParseComments)
-		if err != nil {
-			return nil, err
-		}
-
-		ast.Inspect(f, func(node ast.Node) bool {
-			switch typeSpec := node.(type) {
-			case *ast.TypeSpec:
-				if !typeSpec.Name.IsExported() {
-					return false
-				}
-				if typeSpec.Name.Name != t.Name() {
-					return false
-				}
-
-				switch vv := typeSpec.Type.(type) {
-				case *ast.InterfaceType:
-					fmt.Println("interface found:", typeSpec.Name.Name)
-					exchangeStruct = &types.ExchangeStruct{
-						StructName:  typeSpec.Name.Name,
-						IsInterface: true,
-					}
-					return false
-				case *ast.StructType:
-					fmt.Println("struct found:", typeSpec.Name.Name)
-					exchangeStruct = &types.ExchangeStruct{
-						StructName: typeSpec.Name.Name,
-						Fields:     ArgsFromFields(f, vv.Fields),
-					}
-					return false
-				default:
-					fmt.Printf("unknown type %T\n", vv)
-				}
-			}
-			return true
-		})
-
-		if exchangeStruct != nil {
-			break
-		}
-	}
-	return exchangeStruct, nil
-}
+//// ImportedType find package with type t and return parsed struct/interface
+//func ImportedType(file *ast.File, filePath, moduleName, modulePath string, t types.Type) (*types.ExchangeStruct, error) {
+//	typeImportPath := ImportStringForPackage(file, t.Package())
+//
+//	packagePath, err := SourcePath4Package(moduleName, modulePath, typeImportPath, filePath)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	goFiles, err := GoSourceFilesFromPackage(packagePath)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	var exchangeStruct *types.ExchangeStruct
+//
+//	for _, goFile := range goFiles {
+//		fset := token.NewFileSet()
+//		f, err := parser.ParseFile(fset, goFile, nil, parser.ParseComments)
+//		if err != nil {
+//			return nil, err
+//		}
+//
+//		ast.Inspect(f, func(node ast.Node) bool {
+//			switch typeSpec := node.(type) {
+//			case *ast.TypeSpec:
+//				if !typeSpec.Name.IsExported() {
+//					return false
+//				}
+//				if typeSpec.Name.Name != t.Name() {
+//					return false
+//				}
+//
+//				switch vv := typeSpec.Type.(type) {
+//				case *ast.InterfaceType:
+//					fmt.Println("interface found:", typeSpec.Name.Name)
+//					exchangeStruct = &types.ExchangeStruct{
+//						StructName:  typeSpec.Name.Name,
+//						IsInterface: true,
+//					}
+//					return false
+//				case *ast.StructType:
+//					fmt.Println("struct found:", typeSpec.Name.Name)
+//					exchangeStruct = &types.ExchangeStruct{
+//						StructName: typeSpec.Name.Name,
+//						Fields:     ArgsFromFields(f, vv.Fields),
+//					}
+//					return false
+//				default:
+//					fmt.Printf("unknown type %T\n", vv)
+//				}
+//			}
+//			return true
+//		})
+//
+//		if exchangeStruct != nil {
+//			break
+//		}
+//	}
+//	return exchangeStruct, nil
+//}
 
 // ImportedTypeFromPackage find package with type t and return parsed struct/interface
 // packagePath must be *file path* to package source
-func ImportedTypeFromPackage(packagePath string, t types.Type) (*types.Interface, *types.Struct, error) {
-	goFiles, err := GoSourceFilesFromPackage(packagePath)
-	if err != nil {
-		return nil, nil, err
-	}
 
-	for _, goFile := range goFiles {
-		fset := token.NewFileSet()
-		f, err := parser.ParseFile(fset, goFile, nil, parser.ParseComments)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		ifaces, structs := TypesFromASTFile(f)
-
-		for _, iface := range ifaces {
-			if iface.Name == t.Name() {
-				return &iface, nil, nil
-			}
-		}
-
-		for _, str := range structs {
-			if str.Name == t.Name() {
-				return nil, &str, nil
-			}
-		}
-	}
-
-	return nil, nil, nil
-}
+//func ImportedTypeFromPackage(packagePath string, t types.Type) (*types.Interface, *types.Struct, error) {
+//	goFiles, err := GoSourceFilesFromPackage(packagePath)
+//	if err != nil {
+//		return nil, nil, err
+//	}
+//
+//	for _, goFile := range goFiles {
+//		fset := token.NewFileSet()
+//		f, err := parser.ParseFile(fset, goFile, nil, parser.ParseComments)
+//		if err != nil {
+//			return nil, nil, err
+//		}
+//
+//		ifaces, structs := TypesFromASTFile(f)
+//
+//		for _, iface := range ifaces {
+//			if iface.Name == t.Name() {
+//				return &iface, nil, nil
+//			}
+//		}
+//
+//		for _, str := range structs {
+//			if str.Name == t.Name() {
+//				return nil, &str, nil
+//			}
+//		}
+//	}
+//
+//	return nil, nil, nil
+//}
 
 // DependencyForPackage return corresponding *types.Dependency for pkg
 func DependencyForPackage(pkg string, deps []types.Dependency) *types.Dependency {
@@ -200,6 +203,8 @@ func GoSourceFilesFromPackage(pkgPath string) ([]string, error) {
 	return files, nil
 }
 
+// ImportedTypesRecursive  looks for imported types in ifaces & structs.
+// Try to find in sources. Return found.
 func ImportedTypesRecursive(file *types.GoFile, ifaces []*types.Interface, structs []*types.Struct, depth int) ([]*types.Interface, []*types.Struct, error) {
 	if depth <= 0 {
 		return nil, nil, nil
@@ -230,6 +235,8 @@ func ImportedTypesRecursive(file *types.GoFile, ifaces []*types.Interface, struc
 		}
 	}
 
+	var foundIfaces []*types.Interface
+	var foundStructs []*types.Struct
 typeLoop:
 	for _, data := range types2Find {
 		for _, s := range viper.GetStringSlice("exclude_types") {
@@ -242,13 +249,37 @@ typeLoop:
 		if err != nil {
 			fmt.Printf("recursive find type %s error: %s\n", data.Type, err.Error())
 		}
-		ifaces = append(ifaces, i...)
-		structs = append(structs, s...)
+
+		if depth > 0 {
+			depI, depS, err := ImportedTypesRecursive(file, i, s, depth-1)
+			if err != nil {
+				return foundIfaces, foundStructs, err
+			}
+
+			foundIfaces = utils.AddIfNotContains[*types.Interface](foundIfaces, func(a, b *types.Interface) bool {
+				return a.Name == b.Name && len(a.Methods) == len(b.Methods)
+			}, depI...)
+
+			foundStructs = utils.AddIfNotContains[*types.Struct](foundStructs, func(a, b *types.Struct) bool {
+				return a.Name == b.Name && len(a.Fields) == len(b.Fields)
+			}, depS...)
+		}
+
+		foundIfaces = utils.AddIfNotContains[*types.Interface](foundIfaces, func(a, b *types.Interface) bool {
+			return a.Name == b.Name && len(a.Methods) == len(b.Methods)
+		}, i...)
+
+		foundStructs = utils.AddIfNotContains[*types.Struct](foundStructs, func(a, b *types.Struct) bool {
+			return a.Name == b.Name && len(a.Fields) == len(b.Fields)
+		}, s...)
 	}
 
-	return ifaces, structs, nil
+	return foundIfaces, foundStructs, nil
 }
 
+// TypeFromPackage 1. get package import path.
+// 2. Get source files in this package.
+// 3. Look for name definition in package files
 func TypeFromPackage(file *types.GoFile, pkgName string, name string, depth int) ([]*types.Interface, []*types.Struct, error) {
 	if depth == 0 {
 		return nil, nil, nil
@@ -276,7 +307,7 @@ func TypeFromPackage(file *types.GoFile, pkgName string, name string, depth int)
 	fmt.Println(packagePath, "go files:", file.FilePath)
 
 	for _, goFile := range goFiles {
-		ifaces, structs, err := ParseFile(goFile, name, depth)
+		ifaces, structs, err := ParseFile(goFile, name, depth-1)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -297,6 +328,7 @@ func TypeFromPackage(file *types.GoFile, pkgName string, name string, depth int)
 	return nil, nil, nil
 }
 
+// ParseFile exported func TODO: edit
 func ParseFile(path string, query string, depth int) ([]*types.Interface, []*types.Struct, error) {
 	fmt.Println("parsing file ", path)
 	f, err := GoFile(path)
@@ -314,6 +346,7 @@ func ParseFile(path string, query string, depth int) ([]*types.Interface, []*typ
 	return ifaces, structs, nil
 }
 
+// TypeDefs exported func TODO: edit
 func TypeDefs(file *types.GoFile, name string, depth int) ([]*types.Interface, []*types.Struct, error) {
 	fmt.Println("getting type defs in ", file.FilePath)
 	var (
@@ -364,6 +397,7 @@ func TypeDefs(file *types.GoFile, name string, depth int) ([]*types.Interface, [
 	return ifaces, structs, nil
 }
 
+// GoFile exported func TODO: edit
 func GoFile(path string) (*types.GoFile, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
