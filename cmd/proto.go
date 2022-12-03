@@ -5,7 +5,6 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/nullc4t/og/internal/extractor"
 	"github.com/nullc4t/og/internal/types"
 	"github.com/nullc4t/og/pkg/extract"
 	"github.com/nullc4t/og/pkg/generator"
@@ -22,7 +21,7 @@ import (
 
 // protoCmd represents the proto command
 var protoCmd = &cobra.Command{
-	Use:   "proto",
+	Use:   "proto -i interfaces.go -e exchanges.go",
 	Short: "generate .proto file",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
@@ -35,7 +34,7 @@ to quickly create a Cobra application.`,
 
 		tmpl := template.Must(template.New("").Funcs(templates.FuncMap).Parse(templates.Proto2))
 
-		ifaceFile, err := extractor.GoFile(viper.GetString("interfaces_file"))
+		ifaceFile, err := extract.GoFile(viper.GetString("interfaces_file"))
 		if err != nil {
 			logger.Fatal(err)
 		}
@@ -53,7 +52,7 @@ to quickly create a Cobra application.`,
 			protoFile.Services = append(protoFile.Services, transform.Interface2ProtoService(*iface))
 		}
 
-		exchFile, err := extractor.GoFile(viper.GetString("exchanges_file"))
+		exchFile, err := extract.GoFile(viper.GetString("exchanges_file"))
 		if err != nil {
 			logger.Fatal(err)
 		}

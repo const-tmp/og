@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"github.com/nullc4t/og/internal/extractor"
 	"github.com/nullc4t/og/pkg/editor"
+	"github.com/nullc4t/og/pkg/extract"
 	"github.com/nullc4t/og/pkg/generator"
 	"github.com/nullc4t/og/pkg/names"
 	"github.com/nullc4t/og/pkg/templates"
@@ -66,7 +66,7 @@ internal
 
 		for _, s := range viper.GetStringSlice("files") {
 			logger.Println("file", s)
-			src, err := extractor.GoFile(s)
+			src, err := extract.GoFile(s)
 			if err != nil {
 				logger.Fatal(err)
 			}
@@ -131,7 +131,7 @@ internal
 							"Type":    "Repo",
 						})
 
-						crudFile, err := extractor.GoFile(crudPath)
+						crudFile, err := extract.GoFile(crudPath)
 						if err != nil {
 							logger.Fatal("crud file parse error:", err)
 						}

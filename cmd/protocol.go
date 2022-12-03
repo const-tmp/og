@@ -1,11 +1,7 @@
-/*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
 	"fmt"
-	"github.com/nullc4t/og/internal/extractor"
 	"github.com/nullc4t/og/internal/types"
 	"github.com/nullc4t/og/pkg/editor"
 	"github.com/nullc4t/og/pkg/extract"
@@ -25,7 +21,7 @@ import (
 
 // protocolCmd represents the protocol command
 var protocolCmd = &cobra.Command{
-	Use:   "protocol",
+	Use:   "protocol [go file with interface(s)]",
 	Short: "Create request & response types",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
@@ -63,7 +59,7 @@ to quickly create a Cobra application.`,
 				exchangeStruct = transform.RenameExchangeStruct(exchangeStruct)
 			}
 
-			sf, err := extractor.GoFile(args[0])
+			sf, err := extract.GoFile(args[0])
 			if err != nil {
 				logger.Fatal(err)
 			}

@@ -16,7 +16,7 @@ import (
 
 // docsCmd represents the docs command
 var docsCmd = &cobra.Command{
-	Use:     "docs",
+	Use:     "docs -f file.go [flags]",
 	Aliases: []string{"doc", "d"},
 	Short:   "Generates docstrings",
 	Long: `A longer description that spans multiple lines and likely contains examples
@@ -25,7 +25,6 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	Example: "og docs -f file1.go --file file2.go",
 	Run: func(cmd *cobra.Command, args []string) {
 		logger.Println("docs called")
 		logger.Println(viper.GetStringSlice("files"))

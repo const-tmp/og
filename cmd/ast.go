@@ -1,6 +1,3 @@
-/*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -14,7 +11,7 @@ import (
 
 // astCmd represents the ast command
 var astCmd = &cobra.Command{
-	Use:   "ast",
+	Use:   "ast [path to go file]",
 	Short: "print file's AST",
 	Long:  `print file's AST`,
 	Args:  cobra.ExactArgs(1),
