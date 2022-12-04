@@ -60,7 +60,7 @@ func New(src *types.GoFile, tmpl *template.Template, dot Dot, fw FileWriter, dst
 func (u Unit) Generate() error {
 	tmp := new(bytes.Buffer)
 
-	fmt.Println("executing template for", u.dstPath)
+	fmt.Println("executing template", u.dstPath)
 
 	err := u.template.Execute(tmp, u.dot)
 	if err != nil {
@@ -68,7 +68,7 @@ func (u Unit) Generate() error {
 	}
 
 	if u.editCodeAfter != nil {
-		fmt.Println("code editors for", u.dstPath)
+		fmt.Println("code editors", u.dstPath)
 
 		for _, codeEditor := range u.editCodeAfter {
 			tmp, err = codeEditor(tmp)
@@ -79,7 +79,7 @@ func (u Unit) Generate() error {
 	}
 
 	if u.editASTAfter != nil {
-		fmt.Println("parsing AST for", u.dstPath)
+		fmt.Println("parsing AST", u.dstPath)
 
 		fset := token.NewFileSet()
 		file, err := parser.ParseFile(fset, u.dstPath, tmp, parser.ParseComments)
@@ -87,7 +87,7 @@ func (u Unit) Generate() error {
 			return err
 		}
 
-		fmt.Println("AST editors for", u.dstPath)
+		fmt.Println("AST editors", u.dstPath)
 		for _, astEditor := range u.editASTAfter {
 			file, err = astEditor(fset, file)
 			if err != nil {

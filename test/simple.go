@@ -5,6 +5,10 @@ import (
 	"github.com/nullc4t/og/internal/types"
 )
 
+//go:generate og protocol simple.go
+//go:generate og proto -i simple.go -e endpoints/simple.exchanges.go
+// go:generate protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative proto/simple.proto
+
 type Simple interface {
 	Get(i int) (err error)
 	Get2(int) error

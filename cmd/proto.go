@@ -39,7 +39,7 @@ to quickly create a Cobra application.`,
 			logger.Fatal(err)
 		}
 
-		services, _ := extract.TypesFromASTFile(ifaceFile.AST)
+		services, _ := extract.TypesFromASTFile(ifaceFile)
 
 		protoPkg := "proto"
 		var protoFile = types.ProtoFile{
@@ -57,9 +57,13 @@ to quickly create a Cobra application.`,
 			logger.Fatal(err)
 		}
 
-		_, exchanges := extract.TypesFromASTFile(exchFile.AST)
+		_, exchanges := extract.TypesFromASTFile(exchFile)
 
-		depIfaces, depStructs, err := extract.ImportedTypesRecursive(exchFile, nil, exchanges, 2)
+		ctx := extract.NewContext()
+
+		depIfaces, depStructs, err := extract.TypesRecursive(ctx, exchFile, nil, exchanges, 2)
+
+		logger.Println(ctx)
 
 		for _, iface := range depIfaces {
 			protoFile.Messages = append(protoFile.Messages, types.ProtoMessage{
@@ -76,7 +80,7 @@ to quickly create a Cobra application.`,
 		protoImports := make(map[string]struct{})
 
 		for _, str := range append(exchanges, depStructs...) {
-			msg := transform.Struct2ProtoMessage(*str)
+			msg := transform.Struct2ProtoMessage(ctx, *str)
 			protoFile.Messages = append(protoFile.Messages, msg)
 			for _, field := range msg.Fields {
 				switch field.Type {

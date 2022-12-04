@@ -11,8 +11,6 @@ import (
 	"github.com/nullc4t/og/pkg/transform"
 	"github.com/nullc4t/og/pkg/writer"
 	"github.com/spf13/viper"
-	"go/parser"
-	"go/token"
 	"path/filepath"
 	"text/template"
 
@@ -37,8 +35,9 @@ to quickly create a Cobra application.`,
 		endpointTmpl := template.Must(tmpl.New("").Funcs(templates.FuncMap).Parse(templates.Endpoints))
 		endpointSetTmpl := template.Must(tmpl.New("").Funcs(templates.FuncMap).Parse(templates.EndpointSet))
 
-		fset := token.NewFileSet()
-		file, err := parser.ParseFile(fset, args[0], nil, parser.ParseComments)
+		//fset := token.NewFileSet()
+		//file, err := parser.ParseFile(fset, args[0], nil, parser.ParseComments)
+		file, err := extract.GoFile(args[0])
 		if err != nil {
 			logger.Fatal(err)
 		}

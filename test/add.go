@@ -8,6 +8,10 @@ import (
 )
 
 // Service describes a service that adds things together.
+//
+//go:generate og protocol add.go
+//go:generate og proto -i add.go -e endpoints/service.exchanges.go
+//go:generate protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative proto/add.proto
 type Service interface {
 	Sum(ctx context.Context, a, b int) (int, error)
 	Concat(ctx context.Context, a, b string) (string, error)

@@ -8,7 +8,7 @@ import (
 )
 
 // StructFromTypeSpec extract *types.Struct from *ast.TypeSpec
-func StructFromTypeSpec(file *ast.File, typeSpec *ast.TypeSpec) *types.Struct {
+func StructFromTypeSpec(file *types.GoFile, typeSpec *ast.TypeSpec) *types.Struct {
 	structType, ok := typeSpec.Type.(*ast.StructType)
 	if !ok {
 		return nil

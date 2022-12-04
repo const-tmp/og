@@ -14,10 +14,10 @@ Interfaces interface {
 }
 
 // InterfacesFromASTFile extract from *ast.File
-func InterfacesFromASTFile(file *ast.File) []types.Interface {
+func InterfacesFromASTFile(file *types.GoFile) []types.Interface {
 	var ifaces []types.Interface
 
-	for _, decl := range file.Decls {
+	for _, decl := range file.AST.Decls {
 		genDecl, ok := decl.(*ast.GenDecl)
 		if !ok {
 			continue
@@ -41,30 +41,30 @@ func InterfacesFromASTFile(file *ast.File) []types.Interface {
 }
 
 // InterfaceFromTypeSpec extract interface from *ast.TypeSpec
-func InterfaceFromTypeSpec(file *ast.File, typeSpec *ast.TypeSpec) *types.Interface {
-	iface, ok := typeSpec.Type.(*ast.InterfaceType)
+func InterfaceFromTypeSpec(file *types.GoFile, typeSpec *ast.TypeSpec) *types.Interface {
+	interfaceType, ok := typeSpec.Type.(*ast.InterfaceType)
 	if !ok {
 		return nil
 	}
 
-	i := types.Interface{Name: typeSpec.Name.Name}
+	iface := types.Interface{Name: typeSpec.Name.Name}
 
 	importSet := utils.NewSet[types.Import]()
 
-	for _, field := range iface.Methods.List {
+	for _, field := range interfaceType.Methods.List {
 		funcType, ok := field.Type.(*ast.FuncType)
 		if !ok {
 			return nil
 		}
 
-		i.Methods = append(i.Methods, types.Method{
+		iface.Methods = append(iface.Methods, types.Method{
 			Name:    field.Names[0].Name,
 			Args:    ArgsFromFields(file, funcType.Params),
 			Results: types.Results{Args: ArgsFromFields(file, funcType.Results)},
 		})
 	}
 
-	for _, method := range i.Methods {
+	for _, method := range iface.Methods {
 		for _, arg := range method.Args {
 			if arg.Type == nil {
 				utils.BugPanic(fmt.Sprint(method.Name, arg.Name, "null Type"))
@@ -80,7 +80,7 @@ func InterfaceFromTypeSpec(file *ast.File, typeSpec *ast.TypeSpec) *types.Interf
 		}
 	}
 
-	i.Dependencies = importSet.All()
+	iface.Dependencies = importSet.All()
 
-	return &i
+	return &iface
 }

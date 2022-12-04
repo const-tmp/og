@@ -8,7 +8,7 @@ import (
 )
 
 // ArgsFromFields extract types.Args from *ast.FieldList
-func ArgsFromFields(file *ast.File, fields *ast.FieldList) types.Args {
+func ArgsFromFields(file *types.GoFile, fields *ast.FieldList) types.Args {
 	if fields == nil || fields.List == nil {
 		return nil
 	}
@@ -35,7 +35,7 @@ func ArgsFromFields(file *ast.File, fields *ast.FieldList) types.Args {
 	return args
 }
 
-func TypeFromExpr(file *ast.File, field ast.Expr) types.Type {
+func TypeFromExpr(file *types.GoFile, field ast.Expr) types.Type {
 	var t types.Type
 
 	switch v := field.(type) {
@@ -64,23 +64,21 @@ func TypeFromExpr(file *ast.File, field ast.Expr) types.Type {
 		return nil
 
 	default:
-		log.Fatalf("[ BUG ] unknown ast.Expr: %T file: %s", v, file.Name.Name)
+		log.Fatalf("[ BUG ] unknown ast.Expr: %T file: %s", v, file.FilePath)
 	}
 
 	return t
 }
 
-func TypeFromIdent(file *ast.File, id *ast.Ident) types.Type {
+func TypeFromIdent(file *types.GoFile, id *ast.Ident) types.Type {
 	if types.IsBuiltIn(id.Name) {
 		return types.NewType(id.Name, "", "")
 	}
-	if ImportStringForPackage(file, file.Name.Name) == "" {
-		fmt.Println(id.Name, file.Name.Name, "empty import")
-	}
-	return types.NewType(id.Name, file.Name.Name, ImportStringForPackage(file, file.Name.Name))
+	//return types.NewType(id.Name, file.Name.Name, ImportStringForPackage(file, file.Name.Name))
+	return types.NewType(id.Name, "", file.ImportPath())
 }
 
-func TypeFromSelectorExpr(file *ast.File, se *ast.SelectorExpr) types.Type {
+func TypeFromSelectorExpr(file *types.GoFile, se *ast.SelectorExpr) types.Type {
 	var p string
 
 	switch pIdent := se.X.(type) {
@@ -93,7 +91,7 @@ func TypeFromSelectorExpr(file *ast.File, se *ast.SelectorExpr) types.Type {
 	return types.NewType(se.Sel.Name, p, ImportStringForPackage(file, p))
 }
 
-func TypeFromStarExpr(file *ast.File, se *ast.StarExpr) types.Type {
+func TypeFromStarExpr(file *types.GoFile, se *ast.StarExpr) types.Type {
 	var t types.Type
 
 	switch x := se.X.(type) {
@@ -110,7 +108,7 @@ func TypeFromStarExpr(file *ast.File, se *ast.StarExpr) types.Type {
 	return types.Pointer{Type: t}
 }
 
-func TypeFromEllipsis(file *ast.File, el *ast.Ellipsis) types.Type {
+func TypeFromEllipsis(file *types.GoFile, el *ast.Ellipsis) types.Type {
 	var t types.Type
 
 	switch x := el.Elt.(type) {
@@ -130,7 +128,7 @@ func TypeFromEllipsis(file *ast.File, el *ast.Ellipsis) types.Type {
 	return types.Pointer{Type: t}
 }
 
-func TypeFromArrayType(file *ast.File, at *ast.ArrayType) types.Type {
+func TypeFromArrayType(file *types.GoFile, at *ast.ArrayType) types.Type {
 	var t types.Type
 
 	switch elt := at.Elt.(type) {
@@ -155,7 +153,7 @@ func TypeFromArrayType(file *ast.File, at *ast.ArrayType) types.Type {
 	return types.Slice{Type: t}
 }
 
-func TypeFromMapType(file *ast.File, mt *ast.MapType) types.Type {
+func TypeFromMapType(file *types.GoFile, mt *ast.MapType) types.Type {
 	kType := TypeFromExpr(file, mt.Key)
 	vType := TypeFromExpr(file, mt.Value)
 	if kType == nil || vType == nil {

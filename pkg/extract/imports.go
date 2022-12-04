@@ -1,13 +1,12 @@
 package extract
 
 import (
-	"fmt"
-	"go/ast"
+	types "github.com/nullc4t/og/internal/types"
 	"strings"
 )
 
-func ImportStringForPackage(file *ast.File, pkg string) string {
-	for _, spec := range file.Imports {
+func ImportStringForPackage(file *types.GoFile, pkg string) string {
+	for _, spec := range file.AST.Imports {
 		pathString := strings.Replace(spec.Path.Value, "\"", "", -1)
 
 		if spec.Name != nil {
@@ -27,7 +26,5 @@ func ImportStringForPackage(file *ast.File, pkg string) string {
 		}
 	}
 
-	fmt.Println("import string not found; file:", file.Name.Name, "package:", pkg)
-
-	return ""
+	return file.ImportPath()
 }
