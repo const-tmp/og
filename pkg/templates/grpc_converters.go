@@ -33,8 +33,13 @@ func encodeGRPC{{ .Name }}(_ context.Context, response interface{}) (interface{}
 `
 
 var GRPCEncoder = `package {{ .Package }}
-{{ range .Encoders }}
+{{ range $k, $conv := .InterfaceConverters }}
+func {{ $conv.Name }}(v {{ $conv.Type.Package }}.{{ $conv.Type.Name }}) ({{ $conv.Proto.Package }}.{{ $conv.Proto.Name }}, error) {
+	panic("unimplemented") // TODO
+}
+{{- end }}
 
+{{ range .Encoders }}
 {{- if .IsSlice }}
 func {{ .StructName }}{{ if .IsPointer }}Pointer{{ end }}{{ if .IsSlice }}Slice{{ end }}2Proto(v []{{ if .IsPointer }}*{{ end }}{{ .Type.Package }}.{{ .Type.Name }}) ([]*{{ .Proto.Package }}.{{ .Proto.Name }}, error) {
 	var res []*{{ .Proto.Package }}.{{ .Proto.Name }}

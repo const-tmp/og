@@ -17,20 +17,30 @@ type (
 	}
 
 	Encoder struct {
-		StructName    string
-		Converters    map[types.Field]Converter
-		SubConverters []SubConverterCall
-		Type          types.Struct
-		Proto         types.Struct
-		IsSlice       bool
-		IsPointer     bool
-		Deps          map[DepIndex]Dependency
-		Imports       utils.Set[types.Import]
+		StructName          string
+		Converters          map[types.Field]Converter
+		SubConverters       []SubConverterCall
+		Type                types.Struct
+		Proto               types.Struct
+		IsSlice             bool
+		IsPointer           bool
+		IsInterface         bool
+		Deps                map[DepIndex]Dependency
+		Imports             utils.Set[types.Import]
+		InterfaceConverters map[struct{ t, p string }]InterfaceConverter
 	}
 
+	InterfaceConverter struct {
+		Name  string
+		Type  types.Interface
+		Proto types.Struct
+	}
+
+	FieldExpression func(s string) string
+
 	Converter struct {
-		Funcs []TypeConverter
-		Field types.Field
+		FieldExpressions []FieldExpression
+		Field            types.Field
 	}
 
 	SubConverterCall struct {
@@ -40,10 +50,11 @@ type (
 	}
 
 	Dependency struct {
-		Type      types.Struct
-		Proto     types.Struct
-		IsSlice   bool
-		IsPointer bool
+		Type        types.Struct
+		Proto       types.Struct
+		IsSlice     bool
+		IsPointer   bool
+		IsInterface bool
 	}
 
 	DepIndex struct {
@@ -55,7 +66,7 @@ type (
 
 func (c Converter) Convert() string {
 	s := c.Field.Name
-	for _, converter := range c.Funcs {
+	for _, converter := range c.FieldExpressions {
 		s = converter(s)
 	}
 	return s
@@ -63,12 +74,13 @@ func (c Converter) Convert() string {
 
 func Structs2ProtoConverter(ctx *extract.Context, ty, pb *types.Struct) Encoder {
 	ret := Encoder{
-		StructName: ty.Name,
-		Type:       *ty,
-		Proto:      *pb,
-		Converters: make(map[types.Field]Converter),
-		Deps:       make(map[DepIndex]Dependency),
-		Imports:    utils.NewSet[types.Import](),
+		StructName:          ty.Name,
+		Type:                *ty,
+		Proto:               *pb,
+		Converters:          make(map[types.Field]Converter),
+		Deps:                make(map[DepIndex]Dependency),
+		Imports:             utils.NewSet[types.Import](),
+		InterfaceConverters: map[struct{ t, p string }]InterfaceConverter{},
 	}
 	// get all imported types to add it go generated file
 	for _, field := range ty.Fields {
@@ -95,14 +107,41 @@ func Structs2ProtoConverter(ctx *extract.Context, ty, pb *types.Struct) Encoder 
 		}
 		tyField := ty.Fields[tyIdx]
 
+		tyi := ctx.GetInterface(tyField.Type)
+
+		if tyi != nil {
+			pbs := ctx.GetStruct(pbField.Type)
+			ret.Converters[pbField] = Converter{
+				FieldExpressions: []FieldExpression{
+					names.GetUnexportedName,
+					AddressFactory(tyField.Type, pbField.Type),
+				},
+				Field: tyField,
+			}
+			ret.SubConverters = append(ret.SubConverters, SubConverterCall{
+				FieldName:     pbField.Name,
+				ConverterName: tyField.Type.Name() + "2Proto",
+				Converter: Converter{
+					FieldExpressions: []FieldExpression{SelectorFactory("v")},
+					Field:            tyField,
+				},
+			})
+			ret.InterfaceConverters[struct{ t, p string }{t: tyi.Name, p: pbs.Name}] = InterfaceConverter{
+				Name:  tyi.Name + "2Proto",
+				Type:  *tyi,
+				Proto: *pbs,
+			}
+			continue
+		}
+
 		switch {
 		// slice encoder
 		case isTypeSlice(tyField.Type) && isTypeSlice(pbField.Type):
 			isPointer := isSliceTypePointer(tyField.Type)
 
 			ret.Converters[pbField] = Converter{
-				Funcs: []TypeConverter{names.GetUnexportedName},
-				Field: tyField,
+				FieldExpressions: []FieldExpression{names.GetUnexportedName},
+				Field:            tyField,
 			}
 			var prefix string
 			if isPointer {
@@ -114,7 +153,10 @@ func Structs2ProtoConverter(ctx *extract.Context, ty, pb *types.Struct) Encoder 
 				FieldName:     pbField.Name,
 				ConverterName: tyField.Type.Name() + prefix + "2Proto",
 				Converter: Converter{
-					Funcs: []TypeConverter{SelectorFactory("v"), addressFactory(tyField.Type, pbField.Type)},
+					FieldExpressions: []FieldExpression{
+						SelectorFactory("v"),
+						AddressFactory(tyField.Type, pbField.Type),
+					},
 					Field: tyField,
 				},
 			})
@@ -130,52 +172,58 @@ func Structs2ProtoConverter(ctx *extract.Context, ty, pb *types.Struct) Encoder 
 				Proto:   *ctx.GetStruct(pbField.Type),
 				IsSlice: false,
 			}
+
 		case tyField.Type.Name() == "error" && pbField.Type.Name() == "string":
 			ret.Converters[pbField] = Converter{
-				Funcs: []TypeConverter{SelectorFactory("v"), Error2String},
-				Field: tyField,
+				FieldExpressions: []FieldExpression{SelectorFactory("v"), Error2String},
+				Field:            tyField,
 			}
 		case tyField.Type.Name() == "int" && pbField.Type.Name() == "int32":
 			ret.Converters[pbField] = Converter{
-				Funcs: []TypeConverter{SelectorFactory("v"), Int2Int32},
-				Field: tyField,
+				FieldExpressions: []FieldExpression{SelectorFactory("v"), Int2Int32},
+				Field:            tyField,
 			}
 		case tyField.Type.String() == "time.Time" && pbField.Type.String() == "*timestamppb.Timestamp":
 			ret.Converters[pbField] = Converter{
-				Funcs: []TypeConverter{SelectorFactory("v"), Time2Proto},
-				Field: tyField,
+				FieldExpressions: []FieldExpression{SelectorFactory("v"), Time2Proto},
+				Field:            tyField,
+			}
+		case tyField.Type.String() == "decimal.Decimal" && pbField.Type.String() == "string":
+			ret.Converters[pbField] = Converter{
+				FieldExpressions: []FieldExpression{SelectorFactory("v"), Decimal2String},
+				Field:            tyField,
 			}
 		case tyField.Type.Name() == pbField.Type.Name():
 			if tyField.Type.IsBuiltin() {
 				ret.Converters[pbField] = Converter{
-					Funcs: []TypeConverter{SelectorFactory("v"), addressFactory(tyField.Type, pbField.Type)},
-					Field: tyField,
+					FieldExpressions: []FieldExpression{SelectorFactory("v"), AddressFactory(tyField.Type, pbField.Type)},
+					Field:            tyField,
 				}
 			} else {
 				ret.Converters[pbField] = Converter{
-					Funcs: []TypeConverter{names.GetUnexportedName},
-					Field: tyField,
+					FieldExpressions: []FieldExpression{names.GetUnexportedName},
+					Field:            tyField,
 				}
 				ret.SubConverters = append(ret.SubConverters, SubConverterCall{
 					FieldName:     pbField.Name,
 					ConverterName: tyField.Type.Name() + "2Proto",
 					Converter: Converter{
-						Funcs: []TypeConverter{SelectorFactory("v"), addressFactory(tyField.Type, pbField.Type)},
-						Field: tyField,
+						FieldExpressions: []FieldExpression{SelectorFactory("v"), AddressFactory(tyField.Type, pbField.Type)},
+						Field:            tyField,
 					},
 				})
 			}
 		default:
 			ret.Converters[pbField] = Converter{
-				Funcs: []TypeConverter{names.GetUnexportedName},
-				Field: tyField,
+				FieldExpressions: []FieldExpression{names.GetUnexportedName},
+				Field:            tyField,
 			}
 			ret.SubConverters = append(ret.SubConverters, SubConverterCall{
 				FieldName:     pbField.Name,
 				ConverterName: tyField.Type.Name() + "2" + pbField.Type.Name(),
 				Converter: Converter{
-					Funcs: []TypeConverter{SelectorFactory("v"), addressFactory(tyField.Type, pbField.Type)},
-					Field: tyField,
+					FieldExpressions: []FieldExpression{SelectorFactory("v"), AddressFactory(tyField.Type, pbField.Type)},
+					Field:            tyField,
 				},
 			})
 		}
@@ -184,7 +232,7 @@ func Structs2ProtoConverter(ctx *extract.Context, ty, pb *types.Struct) Encoder 
 	return ret
 }
 
-func addressFactory(t, pb types.Type) TypeConverter {
+func AddressFactory(t, pb types.Type) FieldExpression {
 	var prefix string
 	if !isTypePointer(t) && isTypePointer(pb) {
 		prefix = "&"
@@ -223,13 +271,11 @@ func indexField(a []types.Field, s types.Field) int {
 	return fieldSliceUtil.Index(a, s)
 }
 
-type TypeConverter func(s string) string
-
 func NoOpConverter(s string) string {
 	return s
 }
 
-func SelectorFactory(sel string) TypeConverter {
+func SelectorFactory(sel string) FieldExpression {
 	return func(s string) string {
 		return fmt.Sprintf("%s.%s", sel, s)
 	}
@@ -247,6 +293,10 @@ func Time2Proto(s string) string {
 	return fmt.Sprintf("timestamppb.New(%s)", s)
 }
 
+func Decimal2String(s string) string {
+	return fmt.Sprintf("%s.String()", s)
+}
+
 func ValueOf(s string) string {
 	return fmt.Sprintf("*%s", s)
 }
@@ -259,7 +309,7 @@ func NewEncoder(s string) string {
 	return fmt.Sprintf("%s2Proto", s)
 }
 
-func NewEncoderFactory(from, to string) TypeConverter {
+func NewEncoderFactory(from, to string) FieldExpression {
 	return func(s string) string {
 		return fmt.Sprintf("%s2%s(%s)", from, to, s)
 	}

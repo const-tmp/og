@@ -88,8 +88,13 @@ to quickly create a Cobra application.`,
 		}
 
 		im := utils.NewSet[types.Import]()
+		icm := map[struct{ t, p string }]transform.InterfaceConverter{}
+
 		for _, encoder := range encoders {
 			im.Add(encoder.Imports.All()...)
+			for _, converter := range encoder.InterfaceConverters {
+				icm[struct{ t, p string }{t: converter.Type.Name, p: converter.Proto.Name}] = converter
+			}
 		}
 
 		epUnit := generator.NewUnit(
@@ -110,8 +115,9 @@ to quickly create a Cobra application.`,
 
 		tyUnit := generator.NewUnit(
 			exchFile, tyTmpl, map[string]any{
-				"Package":  "transportgrpc",
-				"Encoders": append(encoders),
+				"Package":             "transportgrpc",
+				"Encoders":            encoders,
+				"InterfaceConverters": icm,
 			}, nil,
 			[]editor.ASTEditor{editor.ASTImportsFactory(append(
 				im.All(),
