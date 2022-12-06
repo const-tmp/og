@@ -77,7 +77,6 @@ func (u Unit) Generate() error {
 			}
 		}
 	}
-
 	if u.editASTAfter != nil {
 		fmt.Println("parsing AST", u.dstPath)
 

@@ -6,6 +6,8 @@ type (
 		Name        string
 		Fields      []Field
 		UsedImports []Import
+		ImportPath  string
+		Package     string
 	}
 
 	// Field exported type TODO: edit

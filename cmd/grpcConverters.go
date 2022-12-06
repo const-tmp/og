@@ -10,6 +10,8 @@ import (
 	"github.com/nullc4t/og/pkg/extract"
 	"github.com/nullc4t/og/pkg/generator"
 	"github.com/nullc4t/og/pkg/templates"
+	"github.com/nullc4t/og/pkg/transform"
+	"github.com/nullc4t/og/pkg/utils"
 	"github.com/nullc4t/og/pkg/writer"
 	"path/filepath"
 	"text/template"
@@ -33,31 +35,61 @@ to quickly create a Cobra application.`,
 		fmt.Println("grpcConverters called")
 
 		epTmpl := template.Must(template.New("").Funcs(templates.FuncMap).Parse(templates.GRPCEnpointConverters))
-		tyTmpl := template.Must(template.New("").Funcs(templates.FuncMap).Parse(templates.GRPCTypeConverters))
+		tyTmpl := template.Must(template.New("").Funcs(templates.FuncMap).Parse(templates.GRPCEncoder))
 
-		exchFile, err := extract.GoFile(args[0])
+		ctx := extract.NewContext()
+
+		_, exchanges, err := extract.ParseFile(ctx, args[0], "", 2)
 		if err != nil {
 			logger.Fatal(err)
 		}
 
-		_, exchanges := extract.TypesFromASTFile(exchFile)
-
-		pbFile, err := extract.GoFile(args[1])
+		_, pbTypes, err := extract.ParseFile(ctx, args[1], "", 0)
 		if err != nil {
 			logger.Fatal(err)
 		}
 
-		_, pbTypes := extract.TypesFromASTFile(pbFile)
+		exchFile := ctx.File[args[0]]
+		pbFile := ctx.File[args[1]]
 
-		//im := utils.NewSet[types.Import]()
-		//
-		//for i, exchange := range exchanges {
-		//	logger.Println(i, exchange.Name)
-		//	im.Add(exchange.UsedImports...)
-		//}
+		logger.Println(ctx)
 
-		for i, pbType := range pbTypes {
-			logger.Println(i, pbType.Name)
+		var encoders []transform.Encoder
+
+		encoderSliceUtil := utils.NewSlice[transform.Encoder](func(a, b transform.Encoder) bool {
+			return a.StructName == b.StructName && a.IsSlice == b.IsSlice
+		})
+		structSliceUtil := utils.NewSlice[*types.Struct](func(t *types.Struct, pb *types.Struct) bool {
+			return t.Name == pb.Name
+		})
+
+		for _, pbType := range pbTypes {
+			if idx := structSliceUtil.Index(exchanges, pbType); idx >= 0 {
+				exType := exchanges[idx]
+				newEnc := transform.Structs2ProtoConverter(ctx, exType, pbType)
+				encoders = encoderSliceUtil.AppendIfNotExist(encoders, newEnc)
+			}
+		}
+
+		for _, encoder := range encoders {
+			for _, dependency := range encoder.Deps {
+				if dependency.IsSlice {
+					encoders = append(encoders, transform.Encoder{
+						StructName: dependency.Type.Name,
+						Type:       dependency.Type,
+						Proto:      dependency.Proto,
+						IsSlice:    dependency.IsSlice,
+						IsPointer:  dependency.IsPointer,
+					})
+				} else {
+					encoders = encoderSliceUtil.AppendIfNotExist(encoders, transform.Structs2ProtoConverter(ctx, &dependency.Type, &dependency.Proto))
+				}
+			}
+		}
+
+		im := utils.NewSet[types.Import]()
+		for _, encoder := range encoders {
+			im.Add(encoder.Imports.All()...)
 		}
 
 		epUnit := generator.NewUnit(
@@ -65,7 +97,6 @@ to quickly create a Cobra application.`,
 				"Package":   "transportgrpc",
 				"Exchanges": exchanges,
 			}, nil,
-			//nil,
 			[]editor.ASTEditor{editor.ASTImportsFactory(
 				types.Import{Path: exchFile.ImportPath()},
 				types.Import{Path: pbFile.ImportPath()}),
@@ -79,14 +110,14 @@ to quickly create a Cobra application.`,
 
 		tyUnit := generator.NewUnit(
 			exchFile, tyTmpl, map[string]any{
-				"Package":   "transportgrpc",
-				"Exchanges": exchanges,
+				"Package":  "transportgrpc",
+				"Encoders": append(encoders),
 			}, nil,
-			//nil,
-			[]editor.ASTEditor{editor.ASTImportsFactory(
+			[]editor.ASTEditor{editor.ASTImportsFactory(append(
+				im.All(),
 				types.Import{Path: exchFile.ImportPath()},
-				types.Import{Path: pbFile.ImportPath()}),
-			},
+				types.Import{Path: pbFile.ImportPath()},
+			)...)},
 			filepath.Join(filepath.Join(filepath.Dir(args[0]), "..", "transport", "grpc"), "type_converters.gen.go"), writer.File,
 		)
 		err = tyUnit.Generate()

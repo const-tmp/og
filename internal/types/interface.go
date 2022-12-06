@@ -7,6 +7,8 @@ type (
 		Name         string
 		Methods      []Method
 		Dependencies []Import
+		ImportPath   string
+		Package      string
 	}
 
 	Method struct {

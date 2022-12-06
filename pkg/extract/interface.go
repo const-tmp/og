@@ -47,7 +47,7 @@ func InterfaceFromTypeSpec(file *types.GoFile, typeSpec *ast.TypeSpec) *types.In
 		return nil
 	}
 
-	iface := types.Interface{Name: typeSpec.Name.Name}
+	iface := types.Interface{Name: typeSpec.Name.Name, ImportPath: file.ImportPath(), Package: file.Package}
 
 	importSet := utils.NewSet[types.Import]()
 

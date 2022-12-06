@@ -31,3 +31,36 @@ func encodeGRPC{{ .Name }}(_ context.Context, response interface{}) (interface{}
 }
 {{ end }}
 `
+
+var GRPCEncoder = `package {{ .Package }}
+{{ range .Encoders }}
+
+{{- if .IsSlice }}
+func {{ .StructName }}{{ if .IsPointer }}Pointer{{ end }}{{ if .IsSlice }}Slice{{ end }}2Proto(v []{{ if .IsPointer }}*{{ end }}{{ .Type.Package }}.{{ .Type.Name }}) ([]*{{ .Proto.Package }}.{{ .Proto.Name }}, error) {
+	var res []*{{ .Proto.Package }}.{{ .Proto.Name }}
+	for _, x := range v {
+		p, err := {{ .StructName }}2Proto({{ if not .IsPointer }}&{{ end }}x)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, p)
+	}
+	return res, nil
+}
+{{ else }}
+func {{ .StructName }}2Proto(v *{{ .Type.Package }}.{{ .Type.Name }}) (*{{ .Proto.Package }}.{{ .Proto.Name }}, error) {
+{{- range .SubConverters }}
+	{{ .FieldName | unexported}}, err := {{ .ConverterName }}({{ .Converter.Convert }})
+	if err != nil {
+		return nil, err
+	}
+{{ end }}
+	return &proto.{{ .StructName }}{
+{{- range $k, $v := .Converters }}
+		{{ $k.Name }}: {{ $v.Convert }},
+{{- end }}
+	}, nil
+}
+{{ end }}
+{{- end }}
+`

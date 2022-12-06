@@ -15,6 +15,15 @@ import (
 	"text/template"
 )
 
+var (
+	structSliceUtil = utils.NewSlice[*types.Struct](func(a, b *types.Struct) bool {
+		return a.Name == b.Name && len(a.Fields) == len(b.Fields)
+	})
+	ifaceSliceUtil = utils.NewSlice[*types.Interface](func(a, b *types.Interface) bool {
+		return a.Name == b.Name && len(a.Methods) == len(b.Methods)
+	})
+)
+
 // TypesFromASTFile exported func TODO: edit
 func TypesFromASTFile(file *types.GoFile) ([]*types.Interface, []*types.Struct) {
 	var (
@@ -116,6 +125,14 @@ type Context struct {
 	Type      map[string]types.Type
 }
 
+func (c Context) GetStruct(t types.Type) *types.Struct {
+	return c.Struct[TypeIndex(t.ImportPath(), t.Name())]
+}
+
+func (c Context) GetInterface(t types.Type) *types.Interface {
+	return c.Interface[TypeIndex(t.ImportPath(), t.Name())]
+}
+
 func (c Context) String() string {
 	tmpl := template.Must(template.New("").Parse(`
 ~~~~~~~~~~~~~~~~~~~~~~~~~ Context ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -149,7 +166,7 @@ func NewContext() *Context {
 	}
 }
 
-func typeIndex(pkgImportStr, typeName string) string {
+func TypeIndex(pkgImportStr, typeName string) string {
 	return fmt.Sprintf("%s/%s", pkgImportStr, typeName)
 }
 
@@ -164,8 +181,6 @@ func TypesRecursive(ctx *Context, file *types.GoFile, ifaces []*types.Interface,
 	if ctx == nil {
 		ctx = NewContext()
 	}
-
-	fmt.Println(ctx)
 
 	// find all NOT builtin types
 	types2Find := make(types.TypeMap)
@@ -205,13 +220,11 @@ typeLoop:
 		}
 
 		// do not search type if already done
-		if ci, ok := ctx.Interface[typeIndex(data.Type.ImportPath(), data.Type.Name())]; ok {
-			fmt.Println(typeIndex(data.Type.ImportPath(), data.Type.Name()), "found in cache")
+		if ci, ok := ctx.Interface[TypeIndex(data.Type.ImportPath(), data.Type.Name())]; ok {
 			foundIfaces = append(foundIfaces, ci)
 			continue
 		}
-		if cs, ok := ctx.Struct[typeIndex(data.Type.ImportPath(), data.Type.Name())]; ok {
-			fmt.Println(typeIndex(data.Type.ImportPath(), data.Type.Name()), "found in cache")
+		if cs, ok := ctx.Struct[TypeIndex(data.Type.ImportPath(), data.Type.Name())]; ok {
 			foundStructs = append(foundStructs, cs)
 			continue
 		}
@@ -227,22 +240,12 @@ typeLoop:
 				return foundIfaces, foundStructs, err
 			}
 
-			foundIfaces = utils.AddIfNotContains[*types.Interface](foundIfaces, func(a, b *types.Interface) bool {
-				return a.Name == b.Name && len(a.Methods) == len(b.Methods)
-			}, depI...)
-
-			foundStructs = utils.AddIfNotContains[*types.Struct](foundStructs, func(a, b *types.Struct) bool {
-				return a.Name == b.Name && len(a.Fields) == len(b.Fields)
-			}, depS...)
+			foundIfaces = ifaceSliceUtil.AppendIfNotExist(foundIfaces, depI...)
+			foundStructs = structSliceUtil.AppendIfNotExist(foundStructs, depS...)
 		}
 
-		foundIfaces = utils.AddIfNotContains[*types.Interface](foundIfaces, func(a, b *types.Interface) bool {
-			return a.Name == b.Name && len(a.Methods) == len(b.Methods)
-		}, i...)
-
-		foundStructs = utils.AddIfNotContains[*types.Struct](foundStructs, func(a, b *types.Struct) bool {
-			return a.Name == b.Name && len(a.Fields) == len(b.Fields)
-		}, s...)
+		foundIfaces = ifaceSliceUtil.AppendIfNotExist(foundIfaces, i...)
+		foundStructs = structSliceUtil.AppendIfNotExist(foundStructs, s...)
 	}
 
 	return foundIfaces, foundStructs, nil
@@ -283,13 +286,6 @@ func TypeFromPackage(ctx *Context, file *types.GoFile, pkgName string, name stri
 			return nil, nil, err
 		}
 
-		gf, err := GoFile(goFile)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		ctx.File[gf.FilePath] = gf
-
 		for _, iface := range ifaces {
 			if iface.Name == name {
 				return []*types.Interface{iface}, nil, nil
@@ -313,6 +309,8 @@ func ParseFile(ctx *Context, path string, query string, depth int) ([]*types.Int
 	if err != nil {
 		return nil, nil, err
 	}
+
+	ctx.File[f.FilePath] = f
 
 	ifaces, structs, err := TypeDefs(ctx, f, query, depth)
 	if err != nil {
@@ -364,12 +362,10 @@ func TypeDefs(ctx *Context, file *types.GoFile, name string, depth int) ([]*type
 	}
 
 	for _, iface := range ifaces {
-		fmt.Println("adding interface to cache:", typeIndex(file.ImportPath(), iface.Name))
-		ctx.Interface[typeIndex(file.ImportPath(), iface.Name)] = iface
+		ctx.Interface[TypeIndex(file.ImportPath(), iface.Name)] = iface
 	}
 	for _, str := range structs {
-		fmt.Println("adding struct to cache:", typeIndex(file.ImportPath(), str.Name))
-		ctx.Struct[typeIndex(file.ImportPath(), str.Name)] = str
+		ctx.Struct[TypeIndex(file.ImportPath(), str.Name)] = str
 	}
 
 	i, s, err := TypesRecursive(ctx, file, ifaces, structs, depth)

@@ -85,13 +85,17 @@ func ASTImportsFactory(imports ...types.Import) ASTEditor {
 				fmt.Println("adding named import", imp.Name, imp.Path)
 				ok := astutil.AddNamedImport(fset, file, imp.Name, imp.Path)
 				if !ok {
-					return nil, fmt.Errorf("add import %s %s is not ok", imp.Name, imp.Path)
+					fmt.Printf("add import %s %s is not ok\n", imp.Name, imp.Path)
+					continue
+					//return nil, fmt.Errorf("add import %s %s is not ok", imp.Name, imp.Path)
 				}
 			} else {
 				fmt.Println("adding import", imp.Path)
 				ok := astutil.AddImport(fset, file, imp.Path)
 				if !ok {
-					return nil, fmt.Errorf("add import %s %s is not ok", imp.Name, imp.Path)
+					fmt.Printf("add import %s %s is not ok\n", imp.Name, imp.Path)
+					continue
+					//return nil, fmt.Errorf("add import %s %s is not ok", imp.Name, imp.Path)
 				}
 			}
 		}

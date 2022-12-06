@@ -14,7 +14,7 @@ func StructFromTypeSpec(file *types.GoFile, typeSpec *ast.TypeSpec) *types.Struc
 		return nil
 	}
 
-	s := types.Struct{Name: typeSpec.Name.Name}
+	s := types.Struct{Name: typeSpec.Name.Name, ImportPath: file.ImportPath(), Package: file.Package}
 
 	importSet := utils.NewSet[types.Import]()
 
@@ -26,11 +26,13 @@ func StructFromTypeSpec(file *types.GoFile, typeSpec *ast.TypeSpec) *types.Struc
 
 		switch len(field.Names) {
 		case 1:
-			s.Fields = append(s.Fields, types.Field{
-				Name: field.Names[0].Name,
-				Type: TypeFromExpr(file, field.Type),
-				Tag:  tag,
-			})
+			if field.Names[0].IsExported() {
+				s.Fields = append(s.Fields, types.Field{
+					Name: field.Names[0].Name,
+					Type: TypeFromExpr(file, field.Type),
+					Tag:  tag,
+				})
+			}
 		case 0:
 			s.Fields = append(s.Fields, types.Field{
 				Type: TypeFromExpr(file, field.Type),
