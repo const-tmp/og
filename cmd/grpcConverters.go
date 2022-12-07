@@ -129,8 +129,10 @@ to quickly create a Cobra application.`,
 
 		epUnit := generator.NewUnit(
 			exchFile, epTmpl, map[string]any{
-				"Package":   "transportgrpc",
-				"Exchanges": exchanges,
+				"Package": "transportgrpc",
+				"Exchanges": utils.Filter[*types.Struct](exchanges, func(s *types.Struct) bool {
+					return s.ImportPath == exchFile.ImportPath()
+				}),
 			}, nil,
 			[]editor.ASTEditor{editor.ASTImportsFactory(
 				types.Import{Path: exchFile.ImportPath()},

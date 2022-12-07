@@ -70,3 +70,13 @@ func (s Slice[T]) AppendIfNotExist(slice []T, v ...T) []T {
 	}
 	return slice
 }
+
+func Filter[T any](slice []T, filterFunc func(T) bool) []T {
+	var ret []T
+	for _, t := range slice {
+		if filterFunc(t) {
+			ret = append(ret, t)
+		}
+	}
+	return ret
+}
