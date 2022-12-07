@@ -34,7 +34,11 @@ func encodeGRPC{{ .Name }}(_ context.Context, response interface{}) (interface{}
 
 var GRPCEncoder = `package {{ .Package }}
 {{ range $k, $conv := .InterfaceConverters }}
-func {{ $conv.Name }}(v {{ $conv.Type.Package }}.{{ $conv.Type.Name }}) ({{ $conv.Proto.Package }}.{{ $conv.Proto.Name }}, error) {
+func {{ $conv.Name }}2Proto(v {{ $conv.Type.Package }}.{{ $conv.Type.Name }}) (*{{ $conv.Proto.Package }}.{{ $conv.Proto.Name }}, error) {
+	panic("unimplemented") // TODO
+}
+
+func Proto2{{ $conv.Name }}(v *{{ $conv.Proto.Package }}.{{ $conv.Proto.Name }}) ({{ $conv.Type.Package }}.{{ $conv.Type.Name }}, error) {
 	panic("unimplemented") // TODO
 }
 {{- end }}
@@ -54,18 +58,50 @@ func {{ .StructName }}{{ if .IsPointer }}Pointer{{ end }}{{ if .IsSlice }}Slice{
 }
 {{ else }}
 func {{ .StructName }}2Proto(v *{{ .Type.Package }}.{{ .Type.Name }}) (*{{ .Proto.Package }}.{{ .Proto.Name }}, error) {
-{{- range .SubConverters }}
-	{{ .FieldName | unexported}}, err := {{ .ConverterName }}({{ .Converter.Convert }})
+{{- range .ConverterCalls }}
+	{{ .FieldName | unexported}}, err := {{ .ConverterName }}({{ .Converter.Render }})
 	if err != nil {
 		return nil, err
 	}
 {{ end }}
-	return &proto.{{ .StructName }}{
-{{- range $k, $v := .Converters }}
-		{{ $k.Name }}: {{ $v.Convert }},
+	return &{{ .Proto.Package }}.{{ .Proto.Name }}{
+{{- range $k, $v := .Expressions }}
+		{{ $k.Name }}: {{ $v.Render }},
 {{- end }}
 	}, nil
 }
 {{ end }}
 {{- end }}
+
+{{ range .Decoders }}
+{{- if .IsSlice }}
+func Proto2{{ .StructName }}{{ if .IsPointer }}Pointer{{ end }}{{ if .IsSlice }}Slice{{ end }}(v []*{{ .Proto.Package }}.{{ .Proto.Name }}) ([]{{ if .IsPointer }}*{{ end }}{{ .Type.Package }}.{{ .Type.Name }}, error) {
+	var res []{{ if .IsPointer }}*{{ end }}{{ .Type.Package }}.{{ .Type.Name }}
+	for _, x := range v {
+		p, err := Proto2{{ .StructName }}(x)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, {{ if not .IsPointer }}*{{ end }}p)
+	}
+	return res, nil
+}
+{{ else }}
+func Proto2{{ .StructName }}(v *{{ .Proto.Package }}.{{ .Proto.Name }}) (*{{ .Type.Package }}.{{ .Type.Name }}, error) {
+{{- range .ConverterCalls }}
+	{{ .FieldName | unexported}}, err := {{ .ConverterName }}({{ .Converter.Render }})
+	if err != nil {
+		return nil, err
+	}
+{{ end }}
+	return &{{ .Type.Package }}.{{ .Type.Name }}{
+{{- range $k, $v := .Expressions }}
+		{{ if $k.Name }}{{ $k.Name }}{{ else }}{{ $k.Type.Name }}{{ end }}: {{ $v.Render }},
+{{- end }}
+	}, nil
+}
+{{ end }}
+{{- end }}
+
+
 `

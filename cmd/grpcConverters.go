@@ -54,9 +54,9 @@ to quickly create a Cobra application.`,
 
 		logger.Println(ctx)
 
-		var encoders []transform.Encoder
+		var encoders, decoders []transform.Converter
 
-		encoderSliceUtil := utils.NewSlice[transform.Encoder](func(a, b transform.Encoder) bool {
+		encoderSliceUtil := utils.NewSlice[transform.Converter](func(a, b transform.Converter) bool {
 			return a.StructName == b.StructName && a.IsSlice == b.IsSlice
 		})
 		structSliceUtil := utils.NewSlice[*types.Struct](func(t *types.Struct, pb *types.Struct) bool {
@@ -66,7 +66,7 @@ to quickly create a Cobra application.`,
 		for _, pbType := range pbTypes {
 			if idx := structSliceUtil.Index(exchanges, pbType); idx >= 0 {
 				exType := exchanges[idx]
-				newEnc := transform.Structs2ProtoConverter(ctx, exType, pbType)
+				newEnc := transform.Structs2ProtoEncoder(ctx, exType, pbType)
 				encoders = encoderSliceUtil.AppendIfNotExist(encoders, newEnc)
 			}
 		}
@@ -74,7 +74,7 @@ to quickly create a Cobra application.`,
 		for _, encoder := range encoders {
 			for _, dependency := range encoder.Deps {
 				if dependency.IsSlice {
-					encoders = append(encoders, transform.Encoder{
+					encoders = append(encoders, transform.Converter{
 						StructName: dependency.Type.Name,
 						Type:       dependency.Type,
 						Proto:      dependency.Proto,
@@ -82,7 +82,31 @@ to quickly create a Cobra application.`,
 						IsPointer:  dependency.IsPointer,
 					})
 				} else {
-					encoders = encoderSliceUtil.AppendIfNotExist(encoders, transform.Structs2ProtoConverter(ctx, &dependency.Type, &dependency.Proto))
+					encoders = encoderSliceUtil.AppendIfNotExist(encoders, transform.Structs2ProtoEncoder(ctx, &dependency.Type, &dependency.Proto))
+				}
+			}
+		}
+
+		for _, exType := range exchanges {
+			if idx := structSliceUtil.Index(pbTypes, exType); idx >= 0 {
+				pbType := pbTypes[idx]
+				newDec := transform.Structs2ProtoDecoder(ctx, exType, pbType)
+				decoders = encoderSliceUtil.AppendIfNotExist(decoders, newDec)
+			}
+		}
+
+		for _, decoder := range decoders {
+			for _, dependency := range decoder.Deps {
+				if dependency.IsSlice {
+					decoders = append(decoders, transform.Converter{
+						StructName: dependency.Type.Name,
+						Type:       dependency.Type,
+						Proto:      dependency.Proto,
+						IsSlice:    dependency.IsSlice,
+						IsPointer:  dependency.IsPointer,
+					})
+				} else {
+					decoders = encoderSliceUtil.AppendIfNotExist(decoders, transform.Structs2ProtoDecoder(ctx, &dependency.Type, &dependency.Proto))
 				}
 			}
 		}
@@ -93,6 +117,12 @@ to quickly create a Cobra application.`,
 		for _, encoder := range encoders {
 			im.Add(encoder.Imports.All()...)
 			for _, converter := range encoder.InterfaceConverters {
+				icm[struct{ t, p string }{t: converter.Type.Name, p: converter.Proto.Name}] = converter
+			}
+		}
+		for _, decoder := range decoders {
+			im.Add(decoder.Imports.All()...)
+			for _, converter := range decoder.InterfaceConverters {
 				icm[struct{ t, p string }{t: converter.Type.Name, p: converter.Proto.Name}] = converter
 			}
 		}
@@ -117,6 +147,7 @@ to quickly create a Cobra application.`,
 			exchFile, tyTmpl, map[string]any{
 				"Package":             "transportgrpc",
 				"Encoders":            encoders,
+				"Decoders":            decoders,
 				"InterfaceConverters": icm,
 			}, nil,
 			[]editor.ASTEditor{editor.ASTImportsFactory(append(

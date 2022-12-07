@@ -12,7 +12,7 @@ func GetExportedName(name string) string {
 	return fmt.Sprintf("%s%s", strings.ToUpper(name[:1]), name[1:])
 }
 
-func GetUnexportedName(name string) string {
+func Unexported(name string) string {
 	if len(name) == 0 {
 		return ""
 	}

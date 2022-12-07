@@ -27,7 +27,7 @@ var (
 		"struct_constructor_args":   StructConstructorArgs,
 		"struct_constructor_return": StructConstructorReturn,
 		"exported":                  names.GetExportedName,
-		"unexported":                names.GetUnexportedName,
+		"unexported":                names.Unexported,
 		"mapslice2slice":            MapSlice2Slice,
 		"plus":                      Plus,
 		"camel2snake":               names.Camel2Snake,
@@ -120,7 +120,7 @@ func ReturnAllStructFieldTypes(args types2.Args) string {
 func StructConstructorArgs(args types2.Args) string {
 	var s []string
 	for _, arg := range args {
-		s = append(s, fmt.Sprintf("%s %s", names.GetUnexportedName(arg.Name), arg.Type.String()))
+		s = append(s, fmt.Sprintf("%s %s", names.Unexported(arg.Name), arg.Type.String()))
 	}
 	return strings.Join(s, ", ")
 }
@@ -128,7 +128,7 @@ func StructConstructorArgs(args types2.Args) string {
 func StructConstructorReturn(args types2.Args) string {
 	var s []string
 	for _, arg := range args {
-		s = append(s, names.GetUnexportedName(arg.Name))
+		s = append(s, names.Unexported(arg.Name))
 	}
 	return strings.Join(s, ", ")
 }
