@@ -79,6 +79,24 @@ func (c FieldExpression) Render() string {
 	return s
 }
 
+func addImportToSet(set utils.Set[types.Import], ty, pb types.Struct) {
+	for _, field := range ty.Fields {
+		if field.Type.IsImported() {
+			set.Add(
+				types.Import{Path: field.Type.ImportPath(), Name: field.Type.Package()},
+			)
+		}
+	}
+	for _, pbField := range pb.Fields {
+		if pbField.Type.IsImported() {
+			set.Add(
+				types.Import{Path: pbField.Type.ImportPath(), Name: pbField.Type.Package()},
+			)
+		}
+	}
+
+}
+
 func Structs2ProtoEncoder(ctx *extract.Context, ty, pb *types.Struct) Converter {
 	ret := Converter{
 		StructName:          ty.Name,
@@ -90,20 +108,8 @@ func Structs2ProtoEncoder(ctx *extract.Context, ty, pb *types.Struct) Converter 
 		InterfaceConverters: map[struct{ t, p string }]InterfaceConverter{},
 	}
 	// get all imported types to add it go generated file
-	for _, field := range ty.Fields {
-		if field.Type.IsImported() {
-			ret.Imports.Add(
-				types.Import{Path: field.Type.ImportPath(), Name: field.Type.Package()},
-			)
-		}
-	}
-	for _, pbField := range pb.Fields {
-		if pbField.Type.IsImported() {
-			ret.Imports.Add(
-				types.Import{Path: pbField.Type.ImportPath(), Name: pbField.Type.Package()},
-			)
-		}
-	}
+	addImportToSet(ret.Imports, *ty, *pb)
+
 	// fill in all fields of returning struct
 	for _, pbField := range pb.Fields {
 		// find matching field in second struct
@@ -246,20 +252,8 @@ func Structs2ProtoDecoder(ctx *extract.Context, ty, pb *types.Struct) Converter 
 	ret := NewConverter(*ty, *pb, ty.Name)
 
 	// get all imported types to add it go generated file
-	for _, field := range ty.Fields {
-		if field.Type.IsImported() {
-			ret.Imports.Add(
-				types.Import{Path: field.Type.ImportPath(), Name: field.Type.Package()},
-			)
-		}
-	}
-	for _, pbField := range pb.Fields {
-		if pbField.Type.IsImported() {
-			ret.Imports.Add(
-				types.Import{Path: pbField.Type.ImportPath(), Name: pbField.Type.Package()},
-			)
-		}
-	}
+	addImportToSet(ret.Imports, *ty, *pb)
+
 	// fill in all fields of returning struct
 	for _, tyField := range ty.Fields {
 		// find matching field in second struct
@@ -278,8 +272,6 @@ func Structs2ProtoDecoder(ctx *extract.Context, ty, pb *types.Struct) Converter 
 			continue
 		}
 		pbField := pb.Fields[pbIdx]
-
-		fmt.Printf("type: %s.%s (%s)\tproto: %s.%s (%s)\n", ty.Name, tyField.Name, tyField.Type, pb.Name, pbField.Name, pbField.Type)
 
 		tyi := ctx.GetInterface(tyField.Type)
 		if tyi != nil {
