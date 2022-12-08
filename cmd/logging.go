@@ -1,11 +1,15 @@
 package cmd
 
 import (
-	"errors"
-	"fmt"
+	"github.com/nullc4t/og/internal/types"
+	"github.com/nullc4t/og/pkg/editor"
+	"github.com/nullc4t/og/pkg/extract"
+	"github.com/nullc4t/og/pkg/generator"
+	"github.com/nullc4t/og/pkg/templates"
+	"github.com/nullc4t/og/pkg/writer"
 	"github.com/spf13/cobra"
-	"github.com/vetcher/go-astra/types"
-	"strings"
+	"path/filepath"
+	"text/template"
 )
 
 // loggingCmd represents the logging command
@@ -20,96 +24,34 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Example: "og gen logging service.go middleware/logging.go",
-	Args:    cobra.ExactArgs(2),
-	//Run: func(cmd *cobra.Command, args []string) {
-	//	//srcFile, err := parser.NewAstra(args[0])
-	//	//if err != nil {
-	//	//	logger.Fatal(err)
-	//	//}
-	//
-	//	//tmpl := templates.NewRoot()
-	//	//tmpl, err = tmpl.ParseGlob("templates/*.tmpl")
-	//	tmpl, err := templates.NewRoot()
-	//	if err != nil {
-	//		logger.Fatal(err)
-	//	}
-	//
-	//	tmpl, err = tmpl.ParseFiles("templates/logging_middleware.tmpl")
-	//	if err != nil {
-	//		logger.Fatal(err)
-	//	}
-	//
-	//	tmp := new(bytes.Buffer)
-	//	//err = tmpl.ExecuteTemplate(tmp, "logmw.tmpl", srcFile)
-	//	err = tmpl.ExecuteTemplate(tmp, "logging_middleware.tmpl", srcFile)
-	//	if err != nil {
-	//		logger.Fatal(err)
-	//	}
-	//
-	//	fmt.Println(string(tmp.Bytes()))
-	//
-	//	fset := token.NewFileSet()
-	//	file, err := astparser.ParseFile(fset, "", tmp.Bytes(), 0)
-	//	if err != nil {
-	//		logger.Fatal(err)
-	//	}
-	//
-	//	ok := astutil.AddImport(fset, file, srcFile.ImportPath())
-	//	if !ok {
-	//		logger.Fatal("not ok")
-	//	}
-	//
-	//	for t, _ := range inspector.GetImportedTypes(srcFile.Astra) {
-	//		p := inspector.ExtractPackageFromType(t)
-	//		if importPath := inspector.GetImportPathForPackage(p, srcFile.Astra); importPath != "" {
-	//			astutil.AddImport(fset, file, importPath)
-	//		}
-	//	}
-	//
-	//	ast.SortImports(fset, file)
-	//
-	//	tmp = new(bytes.Buffer)
-	//	err = printer.Fprint(tmp, fset, file)
-	//	if err != nil {
-	//		logger.Fatal(err)
-	//	}
-	//
-	//	formatted, err := format.Source(tmp.Bytes())
-	//	if err != nil {
-	//		logger.Fatal(err)
-	//	}
-	//
-	//	f, err := os.OpenFile(args[1], os.O_WRONLY|os.O_CREATE, 0644)
-	//	if os.IsNotExist(err) {
-	//		err = os.MkdirAll(filepath.Dir(args[1]), 0755)
-	//		if err != nil {
-	//			logger.Fatal(err)
-	//		}
-	//
-	//		f, err = os.Create(args[1])
-	//		if err != nil {
-	//			logger.Fatal(err)
-	//		}
-	//
-	//	}
-	//	if err != nil {
-	//		logger.Fatal(err)
-	//	}
-	//	defer f.Close()
-	//
-	//	_, err = f.Write(formatted)
-	//	if err != nil {
-	//		logger.Fatal(err)
-	//	}
-	//
-	//	fmt.Println("Done")
-	//},
-}
+	Args:    cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		tmpl := template.Must(template.New("").Funcs(templates.FuncMap).Parse(templates.LoggingMiddleware))
 
-func errorHandler(err error) {
-	if err != nil {
-		logger.Fatal(err)
-	}
+		ctx := extract.NewContext()
+
+		ifaces, _, err := extract.ParseFile(ctx, args[0], "", 0)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		ifile := ctx.File[args[0]]
+
+		for _, iface := range ifaces {
+			epUnit := generator.NewUnit(
+				ifile,
+				tmpl,
+				iface,
+				nil,
+				[]editor.ASTEditor{editor.ASTImportsFactory(append(iface.Dependencies, types.Import{Path: ifile.ImportPath()})...)},
+				filepath.Join(filepath.Join(filepath.Dir(ifile.FilePath), "service"), "service_logging.gen.go"),
+				writer.File,
+			)
+			err = epUnit.Generate()
+			if err != nil {
+				logger.Fatal(err)
+			}
+		}
+	},
 }
 
 func init() {
@@ -124,54 +66,4 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// loggingCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-}
-
-func lower1(s string) string { return strings.ToLower(s[:1]) + s[1:] }
-
-func receiver(s string) string { return fmt.Sprintf("%s %s", s[:1], s) }
-
-func dict(args ...interface{}) (map[string]interface{}, error) {
-	if len(args)%2 != 0 {
-		return nil, errors.New("dict: must be an even number of arguments")
-	}
-	m := make(map[string]interface{})
-	for i := 0; i < len(args); i += 2 {
-		s, ok := args[i].(string)
-		if !ok {
-			return nil, fmt.Errorf("%v key must be string but got %T", args[i], args[i])
-		}
-		m[s] = args[i+1]
-	}
-	return m, nil
-}
-
-func renderArgs(args []types.Variable) string {
-	var s []string
-	for _, a := range args {
-		s = append(s, fmt.Sprintf("%s %s", a.Name, a.Type))
-	}
-	return strings.Join(s, ", ")
-}
-
-func argNames(args []types.Variable) []string {
-	var res []string
-	for _, arg := range args {
-		res = append(res, arg.Name)
-	}
-	return res
-}
-
-func argsSting(args []types.Variable) []string {
-	var res []string
-	for _, arg := range args {
-		res = append(res, fmt.Sprintf("%s %s", arg.Name, arg.Type))
-	}
-	return res
-}
-
-func appendFormatter(ss []string) []string {
-	for i, s := range ss {
-		ss[i] = fmt.Sprintf("%s:\t%%v", s)
-	}
-	return ss
 }

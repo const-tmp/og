@@ -21,7 +21,7 @@ import (
 
 // grpcConvertersCmd represents the grpcConverters command
 var grpcConvertersCmd = &cobra.Command{
-	Use:     "grpcConverters exchanges_file.go file.pb.go",
+	Use:     "grpcConverters exchanges_file.go file.pb.go service_interface.go",
 	Aliases: []string{"gc", "grpcconv"},
 	Short:   "A brief description of your command",
 	Long: `A longer description that spans multiple lines and likely contains examples
@@ -30,10 +30,11 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	Args: cobra.ExactArgs(2),
+	Args: cobra.ExactArgs(3),
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("grpcConverters called")
 
+		srvTmpl := template.Must(template.New("").Funcs(templates.FuncMap).Parse(templates.GRPCServer))
 		epTmpl := template.Must(template.New("").Funcs(templates.FuncMap).Parse(templates.GRPCEnpointConverters))
 		tyTmpl := template.Must(template.New("").Funcs(templates.FuncMap).Parse(templates.GRPCEncoder))
 
@@ -49,8 +50,14 @@ to quickly create a Cobra application.`,
 			logger.Fatal(err)
 		}
 
+		ifaces, _, err := extract.ParseFile(ctx, args[2], "", 0)
+		if err != nil {
+			logger.Fatal(err)
+		}
+
 		exchFile := ctx.File[args[0]]
 		pbFile := ctx.File[args[1]]
+		//ifaceFile := ctx.File[args[2]]
 
 		logger.Println(ctx)
 
@@ -160,6 +167,23 @@ to quickly create a Cobra application.`,
 			filepath.Join(filepath.Join(filepath.Dir(args[0]), "..", "transport", "grpc"), "type_converters.gen.go"), writer.File,
 		)
 		err = tyUnit.Generate()
+		if err != nil {
+			logger.Fatal(err)
+		}
+
+		srvUnit := generator.NewUnit(
+			exchFile, srvTmpl, map[string]any{
+				"Package":     "transportgrpc",
+				"ServiceName": ifaces[0].Name,
+				"Endpoints":   ifaces[0].Methods,
+			}, nil,
+			[]editor.ASTEditor{editor.ASTImportsFactory(
+				types.Import{Path: exchFile.ImportPath()},
+				types.Import{Path: pbFile.ImportPath()},
+			)},
+			filepath.Join(filepath.Join(filepath.Dir(args[0]), "..", "transport", "grpc"), "server.gen.go"), writer.File,
+		)
+		err = srvUnit.Generate()
 		if err != nil {
 			logger.Fatal(err)
 		}

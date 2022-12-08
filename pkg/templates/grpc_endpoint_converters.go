@@ -13,6 +13,8 @@ func Encode{{ .Name }}(_ context.Context, r interface{}) (interface{}, error) {
 	switch v := r.(type) {
 	case *endpoints.{{ .Name }}:
 		return {{ .Name }}2Proto(v)
+	case endpoints.{{ .Name }}:
+		return {{ .Name }}2Proto(&v)
 	case nil:
 		return nil, errors.New("nil {{ .Name }}")
 	default:

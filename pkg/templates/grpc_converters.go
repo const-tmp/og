@@ -59,9 +59,15 @@ func {{ .StructName }}{{ if .IsPointer }}Pointer{{ end }}{{ if .IsSlice }}Slice{
 {{ else }}
 func {{ .StructName }}2Proto(v *{{ .Type.Package }}.{{ .Type.Name }}) (*{{ .Proto.Package }}.{{ .Proto.Name }}, error) {
 {{- range .ConverterCalls }}
-	{{ .FieldName | unexported}}, err := {{ .ConverterName }}({{ .Converter.Render }})
+	{{ .FieldName | unexported}}, err := {{ if .ConverterName }}{{ .ConverterName }}({{ .Converter.Render }}){{ else }}{{ .Converter.Render }}{{ end }}
 	if err != nil {
 		return nil, err
+	}
+{{ end }}
+{{ if .ErrorHandler }}
+	var errorString string
+	if v.Error != nil {
+		errorString = v.Error.Error()
 	}
 {{ end }}
 	return &{{ .Proto.Package }}.{{ .Proto.Name }}{
@@ -92,6 +98,12 @@ func Proto2{{ .StructName }}(v *{{ .Proto.Package }}.{{ .Proto.Name }}) (*{{ .Ty
 	{{ .FieldName | unexported}}, err := {{ .ConverterName }}({{ .Converter.Render }})
 	if err != nil {
 		return nil, err
+	}
+{{ end }}
+{{ if .ErrorHandler }}
+	var serviceError error
+	if v.Error != "" {
+		serviceError = errors.New(v.Error)
 	}
 {{ end }}
 	return &{{ .Type.Package }}.{{ .Type.Name }}{

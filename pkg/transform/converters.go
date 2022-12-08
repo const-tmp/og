@@ -22,6 +22,7 @@ type (
 		Deps                map[DepIndex]Dependency
 		Imports             utils.Set[types.Import]
 		InterfaceConverters map[struct{ t, p string }]InterfaceConverter
+		ErrorHandler        bool
 	}
 
 	InterfaceConverter struct {
@@ -109,6 +110,9 @@ func Structs2ProtoEncoder(ctx *extract.Context, ty, pb *types.Struct) Converter 
 		tyIdx := indexField(ty.Fields, pbField)
 		if tyIdx == -1 {
 			fmt.Printf("proto field %s.%s not found in %s\n", pb.Name, pbField.Name, ty.Name)
+			ret.Expressions[pbField] = FieldExpression{
+				FieldExpressions: []FieldExpressionFunc{TODOField},
+			}
 			continue
 		}
 		tyField := ty.Fields[tyIdx]
@@ -180,9 +184,9 @@ func Structs2ProtoEncoder(ctx *extract.Context, ty, pb *types.Struct) Converter 
 			}
 
 		case tyField.Type.Name() == "error" && pbField.Type.Name() == "string":
+			ret.ErrorHandler = true
 			ret.Expressions[pbField] = FieldExpression{
-				FieldExpressions: []FieldExpressionFunc{SelectorFactory("v"), Error2String},
-				Field:            tyField,
+				FieldExpressions: []FieldExpressionFunc{ErrorString},
 			}
 		case tyField.Type.Name() == "int" && pbField.Type.Name() == "int32":
 			ret.Expressions[pbField] = FieldExpression{
@@ -349,9 +353,9 @@ func Structs2ProtoDecoder(ctx *extract.Context, ty, pb *types.Struct) Converter 
 				Field:            pbField,
 			}
 		case pbField.Type.Name() == "string" && tyField.Type.Name() == "error":
+			ret.ErrorHandler = true
 			ret.Expressions[tyField] = FieldExpression{
-				FieldExpressions: []FieldExpressionFunc{SelectorFactory("v"), String2Error},
-				Field:            pbField,
+				FieldExpressions: []FieldExpressionFunc{ServiceError},
 			}
 			ret.Imports.Add(types.Import{Path: "errors"})
 		case pbField.Type.Name() == "int" && tyField.Type.Name() == "int32":
@@ -457,7 +461,7 @@ func EmbeddedStructFactory(t types.Type) FieldExpressionFunc {
 }
 
 func TODOField(_ string) string {
-	return "todo"
+	return "todo /* TODO */"
 }
 
 func isTypePointer(p types.Type) bool {
@@ -501,6 +505,14 @@ func SelectorFactory(sel string) FieldExpressionFunc {
 
 func Error2String(s string) string {
 	return fmt.Sprintf("%s.Error()", s)
+}
+
+func ErrorString(s string) string {
+	return "errorString"
+}
+
+func ServiceError(s string) string {
+	return "serviceError"
 }
 
 func String2Error(s string) string {

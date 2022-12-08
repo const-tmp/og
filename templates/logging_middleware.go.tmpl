@@ -1,0 +1,46 @@
+{{ define "args_printf_string" }}
+{{- range . }}
+{{- if and (not (eq .Type.String "context.Context")) (not (eq .Type.String "error")) }}
+{{ .Name }}({{ .Type }}):   %+v
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- define "args_printf" }}
+{{- range . }}
+{{- if and (not (eq .Type.String "context.Context")) (not (eq .Type.String "error")) }}{{ .Name }}, {{ end -}}
+{{- end -}}
+{{ end -}}
+
+package service
+import (
+    "context"
+    "log"
+)
+
+type loggingMiddleware struct {
+    l    *log.Logger
+    next {{ .Package }}.{{ .Name }}
+}
+
+func NewLoggingMiddleware(l *log.Logger) func(service {{ .Package }}.{{ .Name }}) {{ .Package }}.{{ .Name }} {
+    return func(service {{ .Package }}.{{ .Name }}) {{ .Package }}.{{ .Name }} {
+        return loggingMiddleware{l, service}
+    }
+}
+
+{{ range .Methods }}
+func (mw loggingMiddleware) {{ .Name }}{{ .Args }}{{ .Results }} {
+    mw.l.Printf(`calling {{ .Name }}:
+{{- template "args_printf_string" .Args }}`, {{- template "args_printf" .Args }})
+    {{ callArgs .Results.Args }} = mw.next.{{ .Name }}({{ callArgs .Args }})
+    if err != nil {
+        mw.l.Printf("{{ .Name }} error: %s", err.Error())
+    } else {
+        mw.l.Printf(`{{ .Name }} result:
+{{- template "args_printf_string" .Results.Args }}`,
+{{- template "args_printf" .Results.Args }})
+    }
+	return {{ callArgs .Results.Args }}
+}
+{{ end }}

@@ -3,38 +3,46 @@ package templates
 import (
 	"errors"
 	"fmt"
-	types2 "github.com/nullc4t/og/internal/types"
+	"github.com/nullc4t/og/internal/types"
 	"github.com/nullc4t/og/pkg/names"
 	"github.com/nullc4t/og/pkg/transform"
-	"github.com/vetcher/go-astra/types"
 	"strings"
 	"text/template"
 )
 
 var (
 	FuncMap = template.FuncMap{
-		"argNames":                  argNames,
-		"args":                      argsSting,
-		"funcArgs":                  renderArgs,
-		"join":                      strings.Join,
-		"appendFormatter":           appendFormatter,
-		"lower1":                    lower1,
-		"receiver":                  receiver,
-		"dict":                      dict,
-		"MapDot":                    MapDot,
-		"struct_return_args":        ReturnAllStructFields,
-		"struct_return_types":       ReturnAllStructFieldTypes,
-		"struct_constructor_args":   StructConstructorArgs,
-		"struct_constructor_return": StructConstructorReturn,
-		"exported":                  names.GetExportedName,
-		"unexported":                names.Unexported,
-		"mapslice2slice":            MapSlice2Slice,
-		"plus":                      Plus,
-		"camel2snake":               names.Camel2Snake,
-		"pbtype":                    transform.Go2ProtobufType,
-		"jsonTag":                   JSONTag,
+		//"argNames":                  argNames,
+		//"args":                      argsSting,
+		//"funcArgs":                  renderArgs,
+		"join":            strings.Join,
+		"appendFormatter": appendFormatter,
+		"lower1":          lower1,
+		"receiver":        receiver,
+		"dict":            dict,
+		"MapDot":          MapDot,
+		//"struct_return_args":        ReturnAllStructFields,
+		//"struct_return_types":       ReturnAllStructFieldTypes,
+		//"struct_constructor_args":   StructConstructorArgs,
+		//"struct_constructor_return": StructConstructorReturn,
+		"exported":       names.GetExportedName,
+		"unexported":     names.Unexported,
+		"mapslice2slice": MapSlice2Slice,
+		"plus":           Plus,
+		"camel2snake":    names.Camel2Snake,
+		"pbtype":         transform.Go2ProtobufType,
+		"jsonTag":        JSONTag,
+		"callArgs":       CallArgs,
 	}
 )
+
+func CallArgs(a types.Args) string {
+	var s []string
+	for _, arg := range a {
+		s = append(s, arg.Name)
+	}
+	return strings.Join(s, ", ")
+}
 
 func MapDot(args ...interface{}) (map[string]interface{}, error) {
 	if len(args)%2 != 0 {
@@ -70,29 +78,29 @@ func dict(args ...interface{}) (map[string]interface{}, error) {
 	return m, nil
 }
 
-func renderArgs(args []types.Variable) string {
-	var s []string
-	for _, a := range args {
-		s = append(s, fmt.Sprintf("%s %s", a.Name, a.Type))
-	}
-	return strings.Join(s, ", ")
-}
-
-func argNames(args []types.Variable) []string {
-	var res []string
-	for _, arg := range args {
-		res = append(res, arg.Name)
-	}
-	return res
-}
-
-func argsSting(args []types.Variable) []string {
-	var res []string
-	for _, arg := range args {
-		res = append(res, fmt.Sprintf("%s %s", arg.Name, arg.Type))
-	}
-	return res
-}
+//func renderArgs(args []types.Variable) string {
+//	var s []string
+//	for _, a := range args {
+//		s = append(s, fmt.Sprintf("%s %s", a.Name, a.Type))
+//	}
+//	return strings.Join(s, ", ")
+//}
+//
+//func argNames(args []types.Variable) []string {
+//	var res []string
+//	for _, arg := range args {
+//		res = append(res, arg.Name)
+//	}
+//	return res
+//}
+//
+//func argsSting(args []types.Variable) []string {
+//	var res []string
+//	for _, arg := range args {
+//		res = append(res, fmt.Sprintf("%s %s", arg.Name, arg.Type))
+//	}
+//	return res
+//}
 
 func appendFormatter(ss []string) []string {
 	for i, s := range ss {
@@ -101,37 +109,37 @@ func appendFormatter(ss []string) []string {
 	return ss
 }
 
-func ReturnAllStructFields(args types2.Args) string {
-	var s []string
-	for _, arg := range args {
-		s = append(s, fmt.Sprintf("r.%s", arg.Name))
-	}
-	return strings.Join(s, ", ")
-}
+//func ReturnAllStructFields(args types2.Args) string {
+//	var s []string
+//	for _, arg := range args {
+//		s = append(s, fmt.Sprintf("r.%s", arg.Name))
+//	}
+//	return strings.Join(s, ", ")
+//}
 
-func ReturnAllStructFieldTypes(args types2.Args) string {
-	var s []string
-	for _, arg := range args {
-		s = append(s, arg.Type.String())
-	}
-	return strings.Join(s, ", ")
-}
-
-func StructConstructorArgs(args types2.Args) string {
-	var s []string
-	for _, arg := range args {
-		s = append(s, fmt.Sprintf("%s %s", names.Unexported(arg.Name), arg.Type.String()))
-	}
-	return strings.Join(s, ", ")
-}
-
-func StructConstructorReturn(args types2.Args) string {
-	var s []string
-	for _, arg := range args {
-		s = append(s, names.Unexported(arg.Name))
-	}
-	return strings.Join(s, ", ")
-}
+//func ReturnAllStructFieldTypes(args types2.Args) string {
+//	var s []string
+//	for _, arg := range args {
+//		s = append(s, arg.Type.String())
+//	}
+//	return strings.Join(s, ", ")
+//}
+//
+//func StructConstructorArgs(args types2.Args) string {
+//	var s []string
+//	for _, arg := range args {
+//		s = append(s, fmt.Sprintf("%s %s", names.Unexported(arg.Name), arg.Type.String()))
+//	}
+//	return strings.Join(s, ", ")
+//}
+//
+//func StructConstructorReturn(args types2.Args) string {
+//	var s []string
+//	for _, arg := range args {
+//		s = append(s, names.Unexported(arg.Name))
+//	}
+//	return strings.Join(s, ", ")
+//}
 
 func MapSlice2Slice(sm []map[string]any, key string) []any {
 	var res []any
