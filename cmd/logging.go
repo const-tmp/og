@@ -6,6 +6,7 @@ import (
 	"github.com/nullc4t/og/pkg/extract"
 	"github.com/nullc4t/og/pkg/generator"
 	"github.com/nullc4t/og/pkg/templates"
+	"github.com/nullc4t/og/pkg/transform"
 	"github.com/nullc4t/og/pkg/writer"
 	"github.com/spf13/cobra"
 	"path/filepath"
@@ -34,9 +35,19 @@ to quickly create a Cobra application.`,
 		if err != nil {
 			logger.Fatal(err)
 		}
-		ifile := ctx.File[args[0]]
+
+		fp, err := filepath.Abs(args[0])
+		if err != nil {
+			logger.Fatal(err)
+		}
+
+		ifile := ctx.File[fp]
 
 		for _, iface := range ifaces {
+			transform.NameEmptyArgsInInterface(iface)
+			if iface == nil {
+				continue
+			}
 			epUnit := generator.NewUnit(
 				ifile,
 				tmpl,

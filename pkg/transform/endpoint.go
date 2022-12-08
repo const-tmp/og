@@ -77,6 +77,32 @@ func RenameArgsInInterface(iface types.Interface) {
 	}
 }
 
+func NameEmptyArgsInInterface(iface *types.Interface) {
+	for _, method := range iface.Methods {
+		for _, arg := range method.Args {
+			if arg.Name == "" {
+				arg.Name = renameEmpty(arg.Type)
+			}
+		}
+		for _, arg := range method.Results.Args {
+			if arg.Name == "" {
+				arg.Name = renameEmpty(arg.Type)
+			}
+		}
+	}
+}
+
+func renameEmpty(t types.Type) string {
+	switch t.Name() {
+	case "error":
+		return "err"
+	case "Context":
+		return "ctx"
+	default:
+		return names.Unexported(t.Name())
+	}
+}
+
 func RenameEmpty(t types.Type) string {
 	switch t.Name() {
 	case "error":

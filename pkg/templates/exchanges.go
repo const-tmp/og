@@ -26,12 +26,12 @@ func New{{ .StructName }} ({{ struct_constructor_args .Fields }}) {{ .StructName
 
 // Args is a shortcut returning args to original interface's method
 {{- if .HasContext }}
-func (r {{ .StructName }}) Args(ctx context.Context) (context.Context, {{ struct_return_types .Fields }}) {
-	return ctx, {{ struct_return_args .Fields }}
+func (r {{ .StructName }}) Args(ctx context.Context) (context.Context, {{ struct_types .Fields }}) {
+	return ctx, {{ struct_args .Fields }}
 }
 {{ else }}
-func (r {{ .StructName }}) Args() ({{ struct_return_types .Fields }}) {
-	return {{ struct_return_args .Fields }}
+func (r {{ .StructName }}) Args() ({{ struct_types .Fields }}) {
+	return {{ struct_args .Fields }}
 }
 {{ end }}
 
