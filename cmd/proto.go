@@ -51,21 +51,30 @@ to quickly create a Cobra application.`,
 		for _, iface := range services {
 			protoFile.Services = append(protoFile.Services, transform.Interface2ProtoService(*iface))
 		}
+		for _, service := range protoFile.Services {
+			for _, field := range service.Fields {
+				protoFile.Messages = append(protoFile.Messages, field.Request, field.Response)
+			}
+		}
 
-		exchFile, err := extract.GoFile(viper.GetString("exchanges_file"))
+		//exchFile, err := extract.GoFile(viper.GetString("exchanges_file"))
+		//if err != nil {
+		//	logger.Fatal(err)
+		//}
+
+		//_, exchanges := extract.TypesFromASTFile(exchFile)
+
+		ctx := extract.NewContext()
+		ifaces, structs, err := extract.ParseFile(ctx, viper.GetString("interfaces_file"), "", 2)
 		if err != nil {
 			logger.Fatal(err)
 		}
 
-		_, exchanges := extract.TypesFromASTFile(exchFile)
-
-		ctx := extract.NewContext()
-
-		depIfaces, depStructs, err := extract.TypesRecursive(ctx, exchFile, nil, exchanges, 2)
+		//depIfaces, depStructs, err := extract.TypesRecursive(ctx, ifaceFile, nil, exchanges, 2)
 
 		logger.Println(ctx)
 
-		for _, iface := range depIfaces {
+		for _, iface := range ifaces {
 			protoFile.Messages = append(protoFile.Messages, types.ProtoMessage{
 				Name: iface.Name,
 				Fields: []types.ProtoField{
@@ -79,7 +88,7 @@ to quickly create a Cobra application.`,
 
 		protoImports := make(map[string]struct{})
 
-		for _, str := range append(exchanges, depStructs...) {
+		for _, str := range structs {
 			msg := transform.Struct2ProtoMessage(ctx, *str)
 			protoFile.Messages = append(protoFile.Messages, msg)
 			for _, field := range msg.Fields {

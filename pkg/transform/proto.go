@@ -12,7 +12,7 @@ func Args2ProtoFields(args types.Args) []types.ProtoField {
 	var i int
 
 	for _, arg := range args {
-		if arg.Type.Name() == "Context" {
+		if arg.Type.Name() == "Context" || arg.Type.Name() == "error" {
 			continue
 		}
 		var name string
@@ -83,6 +83,9 @@ func Struct2ProtoMessage(ctx *extract.Context, s types.Struct) types.ProtoMessag
 	var fields []types.ProtoField
 	var i int
 	for _, field := range s.Fields {
+		if field.Type.Name() == "error" {
+			continue
+		}
 		if field.Name != "" {
 			fields = append(fields, types.ProtoField{
 				Type:   Go2ProtobufType(field.Type.String()),

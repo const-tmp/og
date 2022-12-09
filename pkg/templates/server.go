@@ -14,16 +14,18 @@ import (
 
 {{ range .Interface.Methods }}
 func New{{ .Name }}Endpoint(svc {{ $sp }}.{{ $in }}) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-{{- if .Args }} 
-{{- if eq (index .Args 0).Type.String "context.Context" }}
-		return New{{ .Name }}Response(svc.{{ .Name }}(request.(*{{ .Name }}Request).Args(ctx))), nil
-{{- else }}
-		return New{{ .Name }}Response(svc.{{ .Name }}(request.(*{{ .Name }}Request).Args())), nil
-{{- end -}}
-{{- else }}
-		return New{{ .Name }}Response(svc.{{ .Name }}()), nil
-{{- end }}
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		{{- if .Args.HasContext }}
+		{{ .Results.Args.UnexportedNames }} := svc.{{ .Name }}(request.(*{{ .Name }}Request).Args(ctx))
+		{{- else }}
+		{{ .Results.Args.UnexportedNames }} := svc.{{ .Name }}(request.(*{{ .Name }}Request).Args())
+		{{- end }}
+		{{- if .Results.Args.HasError }}
+		if err != nil {
+			return nil, err
+		}
+		{{- end }}
+		return New{{ .Name }}Response({{ .Results.Args.UnexportedNames "err" }}), nil
 	}
 }
 {{ end }}

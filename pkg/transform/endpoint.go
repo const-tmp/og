@@ -14,8 +14,11 @@ func Interface2ExchangeStructs(iface types.Interface) []types.ExchangeStruct {
 		// for request
 		requestStruct := types.ExchangeStruct{StructName: fmt.Sprintf("%sRequest", method.Name)}
 		for _, arg := range method.Args {
+			if types.ArgIsError(*arg) {
+				continue
+			}
 			// do not add context.Context argument
-			if ArgIsContext(*arg) {
+			if types.ArgIsContext(*arg) {
 				requestStruct.HasContext = true
 			} else {
 				requestStruct.Fields = append(requestStruct.Fields, arg)
@@ -25,20 +28,17 @@ func Interface2ExchangeStructs(iface types.Interface) []types.ExchangeStruct {
 
 		// for response
 		responseStruct := types.ExchangeStruct{StructName: fmt.Sprintf("%sResponse", method.Name)}
-		responseStruct.Fields = append(responseStruct.Fields, method.Results.Args...)
+		for _, arg := range method.Results.Args {
+			if types.ArgIsError(*arg) {
+				continue
+			}
+			responseStruct.Fields = append(responseStruct.Fields, arg)
+		}
 
 		es = append(es, responseStruct)
 	}
 
 	return es
-}
-
-func ArgIsContext(arg types.Arg) bool {
-	return arg.Type.String() == "context.Context"
-}
-
-func ArgIsError(arg types.Arg) bool {
-	return arg.Type.String() == "error"
 }
 
 func RenameExchangeStruct(exchangeStruct types.ExchangeStruct) types.ExchangeStruct {
@@ -99,6 +99,9 @@ func renameEmpty(t types.Type) string {
 	case "Context":
 		return "ctx"
 	default:
+		if isTypeSlice(t) {
+			return names.Unexported(t.Name() + "Slice")
+		}
 		return names.Unexported(t.Name())
 	}
 }

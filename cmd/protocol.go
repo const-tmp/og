@@ -47,6 +47,7 @@ to quickly create a Cobra application.`,
 		// for each interface
 		for _, iface := range ifaces {
 			exchangeStructs := transform.Interface2ExchangeStructs(iface)
+			transform.NameEmptyArgsInInterface(&iface)
 
 			logger.Println(iface.Name, "used imports:")
 			for _, imp := range iface.Dependencies {

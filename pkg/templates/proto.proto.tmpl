@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+option go_package = "{{ .GoPackagePath }};{{ .GoPackage }}";
+
+package {{ .Package }};
+{{ range .Imports }}
+import "{{ .Path }}";
+{{- end }}
+
+{{ range .Interfaces }}
+service {{ .Name }} {
+{{- range .Methods }}
+    rpc {{ .Name }} ({{ .Name }}Request) returns ({{ .Name }}Response);
+{{- end }}
+}
+{{- end }}
+
+{{ range .Interfaces }}
+message {{ .Name }} {
+  oneof {{ .Name | camel2snake }} {
+    // TODO
+  }
+}
+{{- end }}
+
+{{ range .Structs }}
+
+{{- end }}
+
+{{ range .Services }}
+// The {{ .Name }} service definition.
+service {{ .Name }} {
+{{- range .Fields }}
+    rpc {{ .Name }} ({{ .Request.Name }}) returns ({{ .Response.Name }});
+{{- end }}
+}
+{{- end }}
+{{ range .Messages }}
+{{- if .Fields }}
+message {{ .Name }} {
+{{- range .Fields }}
+{{ . }}
+{{- end }}
+}
+{{ else }}
+message {{ .Name }} {}
+{{ end }}
+{{- end }}
