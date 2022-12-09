@@ -50,6 +50,7 @@ to quickly create a Cobra application.`,
 		}
 
 		for _, iface := range services {
+			transform.NameEmptyArgsInInterface(iface)
 			protoFile.Services = append(protoFile.Services, transform.Interface2ProtoService(*iface))
 		}
 		for _, service := range protoFile.Services {

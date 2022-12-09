@@ -72,7 +72,7 @@ to quickly create a Cobra application.`,
 		var encoders, decoders []transform.Converter
 
 		encoderSliceUtil := utils.NewSlice[transform.Converter](func(a, b transform.Converter) bool {
-			return a.StructName == b.StructName && a.IsSlice == b.IsSlice
+			return a.StructName == b.StructName && a.IsSlice == b.IsSlice && a.IsPointer == b.IsPointer
 		})
 		structSliceUtil := utils.NewSlice[*types.Struct](func(t *types.Struct, pb *types.Struct) bool {
 			return t.Name == pb.Name
@@ -89,7 +89,7 @@ to quickly create a Cobra application.`,
 		for _, encoder := range encoders {
 			for _, dependency := range encoder.Deps {
 				if dependency.IsSlice {
-					encoders = append(encoders, transform.Converter{
+					encoders = encoderSliceUtil.AppendIfNotExist(encoders, transform.Converter{
 						StructName: dependency.Type.Name,
 						Type:       dependency.Type,
 						Proto:      dependency.Proto,
@@ -113,7 +113,7 @@ to quickly create a Cobra application.`,
 		for _, decoder := range decoders {
 			for _, dependency := range decoder.Deps {
 				if dependency.IsSlice {
-					decoders = append(decoders, transform.Converter{
+					decoders = encoderSliceUtil.AppendIfNotExist(decoders, transform.Converter{
 						StructName: dependency.Type.Name,
 						Type:       dependency.Type,
 						Proto:      dependency.Proto,
