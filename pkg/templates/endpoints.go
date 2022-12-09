@@ -10,16 +10,16 @@ import (
 
 // EndpointSet implements {{ .Interface.Name }} API and used for transport purposes.
 type EndpointSet struct {
-{{ range .Interface.Methods }}
-	{{- .Name }}Endpoint endpoint.Endpoint
-{{ end }}
+{{- range .Interface.Methods }}
+	{{ .Name }}Endpoint endpoint.Endpoint
+{{- end }}
 }
 
 func NewEndpointSet(svc {{ .ServicePackage }}.{{ .Interface.Name }}) EndpointSet {
 	return EndpointSet{
-{{ range .Interface.Methods }}
-	{{- .Name }}Endpoint: New{{ .Name }}Endpoint(svc),
-{{ end }}
+{{- range .Interface.Methods }}
+	{{ .Name }}Endpoint: New{{ .Name }}Endpoint(svc),
+{{- end }}
 	}
 }
 `

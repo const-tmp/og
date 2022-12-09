@@ -177,14 +177,19 @@ func Structs2ProtoEncoder(ctx *extract.Context, ty, pb *types.Struct) Converter 
 				},
 			})
 
+			t := ctx.GetStruct(tyField.Type)
+			if t == nil {
+				continue
+			}
+
 			ret.Deps[DepIndex{Type: tyField.Type.Name(), Proto: pbField.Type.Name(), IsSlice: true}] = Dependency{
-				Type:      *ctx.GetStruct(tyField.Type),
+				Type:      *t,
 				Proto:     *ctx.GetStruct(pbField.Type),
 				IsSlice:   true,
 				IsPointer: isPointer,
 			}
 			ret.Deps[DepIndex{Type: tyField.Type.Name(), Proto: pbField.Type.Name(), IsSlice: false}] = Dependency{
-				Type:    *ctx.GetStruct(tyField.Type),
+				Type:    *t,
 				Proto:   *ctx.GetStruct(pbField.Type),
 				IsSlice: false,
 			}
@@ -327,14 +332,19 @@ func Structs2ProtoDecoder(ctx *extract.Context, ty, pb *types.Struct) Converter 
 				},
 			})
 
+			t := ctx.GetStruct(tyField.Type)
+			if t == nil {
+				continue
+			}
+
 			ret.Deps[DepIndex{Type: tyField.Type.Name(), Proto: pbField.Type.Name(), IsSlice: true}] = Dependency{
-				Type:      *ctx.GetStruct(tyField.Type),
+				Type:      *t,
 				Proto:     *ctx.GetStruct(pbField.Type),
 				IsSlice:   true,
 				IsPointer: isPointer,
 			}
 			ret.Deps[DepIndex{Type: tyField.Type.Name(), Proto: pbField.Type.Name(), IsSlice: false}] = Dependency{
-				Type:    *ctx.GetStruct(tyField.Type),
+				Type:    *t,
 				Proto:   *ctx.GetStruct(pbField.Type),
 				IsSlice: false,
 			}

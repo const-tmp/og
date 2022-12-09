@@ -55,8 +55,16 @@ to quickly create a Cobra application.`,
 			logger.Fatal(err)
 		}
 
-		exchFile := ctx.File[args[0]]
-		pbFile := ctx.File[args[1]]
+		exchPath, err := filepath.Abs(args[0])
+		if err != nil {
+			logger.Fatal(err)
+		}
+		pbPath, err := filepath.Abs(args[1])
+		if err != nil {
+			logger.Fatal(err)
+		}
+		exchFile := ctx.File[exchPath]
+		pbFile := ctx.File[pbPath]
 		//ifaceFile := ctx.File[args[2]]
 
 		logger.Println(ctx)

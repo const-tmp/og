@@ -58,13 +58,13 @@ func {{ .StructName }}{{ if .IsPointer }}Pointer{{ end }}{{ if .IsSlice }}Slice{
 }
 {{ else }}
 func {{ .StructName }}2Proto(v *{{ .Type.Package }}.{{ .Type.Name }}) (*{{ .Proto.Package }}.{{ .Proto.Name }}, error) {
-{{- range .ConverterCalls }}
+{{- range .ConverterCalls -}}
 	{{ .FieldName | unexported}}, err := {{ if .ConverterName }}{{ .ConverterName }}({{ .Converter.Render }}){{ else }}{{ .Converter.Render }}{{ end }}
 	if err != nil {
 		return nil, err
 	}
 {{ end }}
-{{ if .ErrorHandler }}
+{{- if .ErrorHandler }}
 	var errorString string
 	if v.Error != nil {
 		errorString = v.Error.Error()
@@ -94,13 +94,13 @@ func Proto2{{ .StructName }}{{ if .IsPointer }}Pointer{{ end }}{{ if .IsSlice }}
 }
 {{ else }}
 func Proto2{{ .StructName }}(v *{{ .Proto.Package }}.{{ .Proto.Name }}) (*{{ .Type.Package }}.{{ .Type.Name }}, error) {
-{{- range .ConverterCalls }}
+{{- range .ConverterCalls -}}
 	{{ .FieldName | unexported}}, err := {{ .ConverterName }}({{ .Converter.Render }})
 	if err != nil {
 		return nil, err
 	}
 {{ end }}
-{{ if .ErrorHandler }}
+{{- if .ErrorHandler }}
 	var serviceError error
 	if v.Error != "" {
 		serviceError = errors.New(v.Error)
