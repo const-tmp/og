@@ -100,7 +100,7 @@ func renameEmpty(t types.Type) string {
 		return "ctx"
 	default:
 		if isTypeSlice(t) {
-			return names.Unexported(t.Name() + "Slice")
+			return names.Unexported(t.Name() + "List")
 		}
 		return names.Unexported(t.Name())
 	}

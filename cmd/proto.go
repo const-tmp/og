@@ -11,6 +11,7 @@ import (
 	"github.com/nullc4t/og/pkg/names"
 	"github.com/nullc4t/og/pkg/templates"
 	"github.com/nullc4t/og/pkg/transform"
+	"github.com/nullc4t/og/pkg/utils"
 	"github.com/nullc4t/og/pkg/writer"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -73,8 +74,13 @@ to quickly create a Cobra application.`,
 		//depIfaces, depStructs, err := extract.TypesRecursive(ctx, ifaceFile, nil, exchanges, 2)
 
 		logger.Println(ctx)
-
+		ifaceSliceUtil := utils.NewSlice[*types.Interface](func(a, b *types.Interface) bool {
+			return a.Name == b.Name
+		})
 		for _, iface := range ifaces {
+			if ifaceSliceUtil.Contains(services, iface) {
+				continue
+			}
 			protoFile.Messages = append(protoFile.Messages, types.ProtoMessage{
 				Name: iface.Name,
 				Fields: []types.ProtoField{
@@ -88,7 +94,13 @@ to quickly create a Cobra application.`,
 
 		protoImports := make(map[string]struct{})
 
+		pmsu := utils.NewSlice[types.ProtoMessage](func(a, b types.ProtoMessage) bool {
+			return a.Name == b.Name
+		})
 		for _, str := range structs {
+			if pmsu.Contains(protoFile.Messages, types.ProtoMessage{Name: str.Name}) {
+				continue
+			}
 			msg := transform.Struct2ProtoMessage(ctx, *str)
 			protoFile.Messages = append(protoFile.Messages, msg)
 			for _, field := range msg.Fields {
@@ -135,10 +147,6 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// protoCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
-	protoCmd.Flags().StringP("exchanges_file", "e", "", "go file with *Request/Response")
-	_ = protoCmd.MarkFlagRequired("exchanges_file")
-	_ = viper.BindPFlag("exchanges_file", protoCmd.Flag("exchanges_file"))
 
 	protoCmd.Flags().StringP("interfaces_file", "i", "", "go file with interface(s)")
 	_ = protoCmd.MarkFlagRequired("interfaces_file")
