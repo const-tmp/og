@@ -35,7 +35,9 @@ to quickly create a Cobra application.`,
 
 		tmpl := template.Must(template.New("").Funcs(templates.FuncMap).Parse(templates.Proto2))
 
-		ifaceFile, err := extract.GoFile(viper.GetString("interfaces_file"))
+		ifile := viper.GetString("interfaces_file")
+
+		ifaceFile, err := extract.GoFile(ifile)
 		if err != nil {
 			logger.Fatal(err)
 		}
@@ -59,22 +61,14 @@ to quickly create a Cobra application.`,
 			}
 		}
 
-		//exchFile, err := extract.GoFile(viper.GetString("exchanges_file"))
-		//if err != nil {
-		//	logger.Fatal(err)
-		//}
-
-		//_, exchanges := extract.TypesFromASTFile(exchFile)
-
 		ctx := extract.NewContext()
-		ifaces, structs, err := extract.ParseFile(ctx, viper.GetString("interfaces_file"), "", 2)
+		ifaces, structs, err := extract.ParseFile(ctx, ifile, "", 2)
 		if err != nil {
 			logger.Fatal(err)
 		}
 
-		//depIfaces, depStructs, err := extract.TypesRecursive(ctx, ifaceFile, nil, exchanges, 2)
-
 		logger.Println(ctx)
+
 		ifaceSliceUtil := utils.NewSlice[*types.Interface](func(a, b *types.Interface) bool {
 			return a.Name == b.Name
 		})
@@ -121,8 +115,8 @@ to quickly create a Cobra application.`,
 		unit := generator.NewUnit(
 			ifaceFile, tmpl, protoFile, nil, nil,
 			filepath.Join(
-				filepath.Join(filepath.Dir(viper.GetString("interfaces_file")), "proto"),
-				filepath.Base(strings.Replace(viper.GetString("interfaces_file"), ".go", ".proto", 1)),
+				filepath.Join(filepath.Dir(ifile), "proto"),
+				fmt.Sprintf("%s.proto", names.Camel2Snake(protoFile.Services[0].Name)),
 			), writer.File,
 		)
 		err = unit.Generate()
