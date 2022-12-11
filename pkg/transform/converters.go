@@ -155,6 +155,7 @@ func Structs2ProtoEncoder(ctx *extract.Context, ty, pb *types.Struct) Converter 
 		case tyField.Type.String() == "[]byte" && pbField.Type.String() == "[]byte":
 			ret.Expressions[pbField] = FieldExpression{
 				FieldExpressions: []FieldExpressionFunc{SelectorFactory("v")},
+				Field:            tyField,
 			}
 		case isTypeSlice(tyField.Type) && isTypeSlice(pbField.Type):
 			isPointer := isSliceTypePointer(tyField.Type)
@@ -310,6 +311,11 @@ func Structs2ProtoDecoder(ctx *extract.Context, ty, pb *types.Struct) Converter 
 
 		switch {
 		// slice encoder
+		case tyField.Type.String() == "[]byte" && pbField.Type.String() == "[]byte":
+			ret.Expressions[tyField] = FieldExpression{
+				FieldExpressions: []FieldExpressionFunc{SelectorFactory("v")},
+				Field:            pbField,
+			}
 		case isTypeSlice(pbField.Type) && isTypeSlice(tyField.Type):
 			isPointer := isSliceTypePointer(tyField.Type)
 
