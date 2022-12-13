@@ -10,6 +10,7 @@ import (
 // You can add new methods here, 
 // file will not be regenerated if exists
 type Repo interface {
+	DB(ctx context.Context) *gorm.DB
 	{{ range .Repos }}
 	{{- .Method }}() {{ .Package }}.{{ .Type }}
 	{{ end }}
@@ -29,6 +30,10 @@ func New(db *gorm.DB) Repo {
 		{{- .Package }}:       {{ .Package }}.New(db),
 		{{ end }}
 	}
+}
+
+func (r repo) DB(ctx context.Context) *gorm.DB {
+	return r.db.WithContext(ctx)
 }
 
 {{ range .Repos }}
