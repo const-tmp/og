@@ -18,6 +18,8 @@ type CRUD interface {
 	GetByID(ctx context.Context, v {{ .Type }}) (*{{ .Type }}, error)
 	Query(ctx context.Context, v {{ .Type }}, omit ...string) ([]*{{ .Type }}, error)
 	QueryOne(ctx context.Context, v {{ .Type }}, omit ...string) (*{{ .Type }}, error)
+	QueryMap(ctx context.Context, q map[string]any, omit ...string) ([]*{{ .Type }}, error)
+	QueryMapOne(ctx context.Context, q map[string]any, omit ...string) (*{{ .Type }}, error)
 	UpdateField(ctx context.Context, v {{ .Type }}, column string, value any) error
 	Update(ctx context.Context, v {{ .Type }}, omit ...string) (err error)
 	UpdateMap(ctx context.Context, v {{ .Type }}, m map[string]any) error
