@@ -219,6 +219,17 @@ func Structs2ProtoEncoder(ctx *extract.Context, ty, pb *types.Struct) Converter 
 				FieldExpressions: []FieldExpressionFunc{SelectorFactory("v"), Decimal2String},
 				Field:            tyField,
 			}
+		case tyField.Type.String() == "*big.Int" && (pbField.Type.String() == "string" || pbField.Type.String() == "*string"):
+			ret.Expressions[pbField] = FieldExpression{
+				FieldExpressions: []FieldExpressionFunc{SelectorFactory("v"), StringMethod},
+				Field:            tyField,
+			}
+		case (tyField.Type.String() == "*common.Address" || tyField.Type.String() == "common.Address") &&
+			(pbField.Type.String() == "string" || pbField.Type.String() == "*string"):
+			ret.Expressions[pbField] = FieldExpression{
+				FieldExpressions: []FieldExpressionFunc{SelectorFactory("v"), StringMethod},
+				Field:            tyField,
+			}
 		case tyField.Type.Name() == pbField.Type.Name():
 			if tyField.Type.IsBuiltin() {
 				ret.Expressions[pbField] = FieldExpression{
@@ -405,6 +416,37 @@ func Structs2ProtoDecoder(ctx *extract.Context, ty, pb *types.Struct) Converter 
 			})
 			ret.Imports.Add(types.Import{Path: tyField.Type.ImportPath()})
 
+		case (pbField.Type.String() == "string" || pbField.Type.String() == "*string") && tyField.Type.String() == "*big.Int":
+			ret.Expressions[tyField] = FieldExpression{
+				FieldExpressions: []FieldExpressionFunc{names.Unexported},
+				Field:            pbField,
+			}
+			ret.ConverterCalls = append(ret.ConverterCalls, ConverterCall{
+				FieldName:     tyField.Name,
+				ConverterName: "func(s string)(*big.Int,error){if i,ok:=new(big.Int).SetString(s, 10); ok{return i,nil}else {return nil,fmt.Errorf(\"invalid number: %s\", s)}}",
+				Converter: FieldExpression{
+					FieldExpressions: []FieldExpressionFunc{SelectorFactory("v")},
+					Field:            pbField,
+				},
+			})
+			ret.Imports.Add(types.Import{Path: tyField.Type.ImportPath()})
+
+		case (pbField.Type.String() == "string" || pbField.Type.String() == "*string") &&
+			(tyField.Type.String() == "*common.Address" || tyField.Type.String() == "common.Address"):
+			ret.Expressions[tyField] = FieldExpression{
+				FieldExpressions: []FieldExpressionFunc{SelectorFactory("v"), Hex2Address},
+				Field:            pbField,
+			}
+			//ret.ConverterCalls = append(ret.ConverterCalls, ConverterCall{
+			//	FieldName:     tyField.Name,
+			//	ConverterName: "common.HexToAddress",
+			//	Converter: FieldExpression{
+			//		FieldExpressions: []FieldExpressionFunc{SelectorFactory("v")},
+			//		Field:            pbField,
+			//	},
+			//})
+			ret.Imports.Add(types.Import{Path: tyField.Type.ImportPath()})
+
 		case pbField.Type.Name() == tyField.Type.Name():
 			if pbField.Type.IsBuiltin() {
 				ret.Expressions[tyField] = FieldExpression{
@@ -551,6 +593,10 @@ func Decimal2String(s string) string {
 	return fmt.Sprintf("%s.String()", s)
 }
 
+func StringMethod(s string) string {
+	return fmt.Sprintf("%s.String()", s)
+}
+
 func ValueOf(s string) string {
 	return fmt.Sprintf("*%s", s)
 }
@@ -561,6 +607,10 @@ func AddressOf(s string) string {
 
 func NewEncoder(s string) string {
 	return fmt.Sprintf("%s2Proto", s)
+}
+
+func Hex2Address(s string) string {
+	return fmt.Sprintf("common.HexToAddress(%s)", s)
 }
 
 func NewEncoderFactory(from, to string) FieldExpressionFunc {
