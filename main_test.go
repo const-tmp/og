@@ -108,7 +108,7 @@ func TestComments(t *testing.T) {
 					List: []*ast.Comment{comment},
 				}
 				fn.Doc = cg
-				fmt.Println()
+				//fmt.Println()
 			}
 		}
 		return true

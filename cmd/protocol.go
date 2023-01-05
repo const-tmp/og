@@ -35,19 +35,27 @@ to quickly create a Cobra application.`,
 		endpointTmpl := template.Must(tmpl.New("").Funcs(templates.FuncMap).Parse(templates.Endpoints))
 		endpointSetTmpl := template.Must(tmpl.New("").Funcs(templates.FuncMap).Parse(templates.EndpointSet))
 
-		//fset := token.NewFileSet()
-		//file, err := parser.ParseFile(fset, args[0], nil, parser.ParseComments)
-		file, err := extract.GoFile(args[0])
+		ctx := extract.NewContext()
+		ifaces, _, err := extract.ParseFile(ctx, args[0], "", 2)
 		if err != nil {
 			logger.Fatal(err)
 		}
 
-		ifaces := extract.InterfacesFromASTFile(file)
+		logger.Println(ctx)
+
+		//fset := token.NewFileSet()
+		//file, err := parser.ParseFile(fset, args[0], nil, parser.ParseComments)
+		//file, err := extract.GoFile(args[0])
+		//if err != nil {
+		//	logger.Fatal(err)
+		//}
+
+		//ifaces := extract.InterfacesFromASTFile(file)
 
 		// for each interface
 		for _, iface := range ifaces {
-			transform.NameEmptyArgsInInterface(&iface)
-			exchangeStructs := transform.Interface2ExchangeStructs(iface)
+			transform.NameEmptyArgsInInterface(iface)
+			exchangeStructs := transform.Interface2ExchangeStructs(*iface)
 
 			logger.Println(iface.Name, "used imports:")
 			for _, imp := range iface.Dependencies {

@@ -74,8 +74,7 @@ func TypeFromIdent(file *types.GoFile, id *ast.Ident) types.Type {
 	if types.IsBuiltIn(id.Name) {
 		return types.NewType(id.Name, "", "")
 	}
-	//return types.NewType(id.Name, file.Name.Name, ImportStringForPackage(file, file.Name.Name))
-	return types.NewType(id.Name, "", file.ImportPath())
+	return types.NewType(id.Name, file.Package, file.ImportPath())
 }
 
 func TypeFromSelectorExpr(file *types.GoFile, se *ast.SelectorExpr) types.Type {

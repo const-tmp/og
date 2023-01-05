@@ -304,7 +304,7 @@ func TypeFromPackage(ctx *Context, file *types.GoFile, pkgName string, name stri
 
 // ParseFile exported func TODO: edit
 func ParseFile(ctx *Context, path string, query string, depth int) ([]*types.Interface, []*types.Struct, error) {
-	fmt.Println("parsing file ", path)
+	//fmt.Println("parsing file ", path)
 	f, err := GoFile(path)
 	if err != nil {
 		return nil, nil, err
@@ -323,7 +323,7 @@ func ParseFile(ctx *Context, path string, query string, depth int) ([]*types.Int
 
 // TypeDefs exported func TODO: edit
 func TypeDefs(ctx *Context, file *types.GoFile, name string, depth int) ([]*types.Interface, []*types.Struct, error) {
-	fmt.Println("getting type defs in ", file.FilePath)
+	//fmt.Println("getting type defs in ", file.FilePath)
 	var (
 		ifaces  []*types.Interface
 		structs []*types.Struct

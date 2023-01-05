@@ -21,6 +21,7 @@ func Interface2ExchangeStructs(iface types.Interface) []types.ExchangeStruct {
 			if types.ArgIsContext(*arg) {
 				requestStruct.HasContext = true
 			} else {
+				fmt.Println(arg.String())
 				requestStruct.Fields = append(requestStruct.Fields, arg)
 			}
 		}

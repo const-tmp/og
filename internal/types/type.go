@@ -201,6 +201,8 @@ func IsBuiltIn(s string) bool {
 	switch s {
 	case "error":
 		return true
+	case "byte":
+		return true
 	case "int":
 		return true
 	case "int8":
