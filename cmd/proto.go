@@ -22,7 +22,8 @@ import (
 
 // protoCmd represents the proto command
 var protoCmd = &cobra.Command{
-	Use:   "proto -i interfaces.go -e exchanges.go",
+	Use:   "proto -i interfaces.go output_dir/",
+	Args:  cobra.ExactArgs(1),
 	Short: "generate .proto file",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
@@ -32,6 +33,11 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("proto called")
+
+		outputDir, err := filepath.Abs(args[0])
+		if err != nil {
+			logger.Fatal(err)
+		}
 
 		tmpl := template.Must(template.New("").Funcs(templates.FuncMap).Parse(templates.Proto2))
 
@@ -47,8 +53,9 @@ to quickly create a Cobra application.`,
 		protoPkg := "proto"
 		var protoFile = types.ProtoFile{
 			GoPackage:     protoPkg,
-			GoPackagePath: fmt.Sprintf("%s/%s", ifaceFile.ImportPath(), protoPkg),
-			Package:       "service",
+			GoPackagePath: strings.Replace(outputDir, ifaceFile.ModulePath, ifaceFile.Module, 1),
+			//GoPackagePath: fmt.Sprintf("%s/%s", ifaceFile.ImportPath(), protoPkg),
+			Package: "service",
 		}
 
 		for _, iface := range services {
@@ -115,7 +122,7 @@ to quickly create a Cobra application.`,
 		unit := generator.NewUnit(
 			ifaceFile, tmpl, protoFile, nil, nil,
 			filepath.Join(
-				filepath.Join(filepath.Dir(ifile), "proto"),
+				filepath.Join(args[0], "proto"),
 				fmt.Sprintf("%s.proto", names.Camel2Snake(protoFile.Services[0].Name)),
 			), writer.File,
 		)

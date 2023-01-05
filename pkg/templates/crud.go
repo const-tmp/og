@@ -55,6 +55,14 @@ func (i impl) QueryOne(ctx context.Context, v {{ .Type }}, omit ...string) (*{{ 
 	return i.crud.QueryOne(ctx, v, omit...)
 }
 
+func (i impl) QueryMap(ctx context.Context, q map[string]any, omit ...string) ([]*{{ .Type }}, error) {
+	return i.crud.QueryMap(ctx, q, omit...)
+}
+
+func (i impl) QueryMapOne(ctx context.Context, q map[string]any, omit ...string) (*{{ .Type }}, error) {
+	return i.crud.QueryMapOne(ctx, q, omit...)
+}
+
 func (i impl) UpdateField(ctx context.Context, v {{ .Type }}, column string, value any) error {
 	return i.crud.UpdateField(ctx, v, column, value)
 }
